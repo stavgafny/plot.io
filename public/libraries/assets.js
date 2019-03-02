@@ -69,7 +69,8 @@
 				delay : 400,
 				dist : this.radius*.65,
 				radius : this.radius*.28,
-				hitBox : false
+				hitBox : false,
+				side : 0
 			};
 		}
 
@@ -115,8 +116,9 @@
 			this.position.y += (this.speed * this.axis.y) * deltaTime;
 		}
 
-		punch() {
+		punch(side=Math.round(Math.random())) {
 			this.fist.ready = false;
+			this.fist.side = side;
 			setTimeout(() => {
 				this.fist.hitBox = true;
 			}, this.fist.delay / 3);
@@ -125,6 +127,7 @@
 				this.fist.ready = true;
 				this.fist.hitBox = false;
 			}, this.fist.delay);
+			return this.fist.side;
 		}
 
 		getHitBox() {

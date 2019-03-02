@@ -91,10 +91,10 @@ function setup() {
 			}
 		});
 
-		socket.on("punch", (id) => {
-			let p = getPlayerById(id);
+		socket.on("punch", (data) => {
+			let p = getPlayerById(data.id);
 			if (p.fist.ready) {
-				p.punch();
+				p.punch(data.side);
 			}
 		});
 

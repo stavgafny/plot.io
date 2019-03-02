@@ -8,7 +8,6 @@ class GraphicPlayer extends assets.Player {
 			launch : 0,
 			angle : .6,
 			speed : 0,
-			side : 0,
 			handStroke : 2
 		};
 	}
@@ -78,10 +77,7 @@ class GraphicPlayer extends assets.Player {
 	}
 
 
-	punch() {
-		super.punch();
-
-		this.fist.side = round(random(1));
+	punch(side=Math.round(Math.random())) {
 		this.fist.launch = 0;
 		this.fist.speed = this.fist.range / 4;
 		setTimeout(() => {
@@ -91,6 +87,7 @@ class GraphicPlayer extends assets.Player {
 		setTimeout(() => {
 			this.fist.launch = 0;
 		}, this.fist.delay);
+		return super.punch(side);
 	}
 
 	update(deltaTime) {

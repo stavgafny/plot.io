@@ -178,7 +178,7 @@ function windowResized() {
 
 
 function mousePressed(event) {
-	if (event.button === 0) {
+	if (event.button === 0 && !player.getCurrentSlot()) {
 		socket.emit("punch");
 	}
 }

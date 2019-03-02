@@ -121,8 +121,6 @@ exports.Room = class {
   playerPunch(player) {
     if (player.fist.ready) {
       exports.io.sockets.in(this.get()).emit("punch", {side : player.punch(), id : player.id});
-      console.log(player.fist.side ? 'RIGHT' : 'LEFT');
-      
   	}
   }
 

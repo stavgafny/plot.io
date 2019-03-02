@@ -94,7 +94,6 @@
 			this.health = health;
 		}
 
-
 		setColor(color) {
 			this.color = color;
 			if (this.color.fist === undefined) {
@@ -142,6 +141,10 @@
 
 		changeSlot(index) {
 			this.slotIndex = index;
+		}
+
+		getCurrentSlot() {
+			return this.inventory[this.slotIndex];
 		}
 	}
 

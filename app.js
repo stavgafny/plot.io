@@ -4,11 +4,11 @@ const express = require('express');
 const socketEngine = require('socket.io');
 const gameEngine = require('./gameEngine.js');
 
-
 const PORT = 80;
 const GET = "/?game=";
 const app = express();
 app.use(express.static('public'));
+
 
 const server = app.listen(PORT, () => {
 	console.log(`server is running at port: ${PORT}`);
@@ -16,8 +16,6 @@ const server = app.listen(PORT, () => {
 
 const io = socketEngine(server);
 gameEngine.io = io;
-
-
 
 const rooms = [];
 rooms.push(

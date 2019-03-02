@@ -1,11 +1,13 @@
-// ~All game core object~
+// ~All game core object and assets~
 
-(function(exports){
+(function(exports) {
 
 	exports.Item = class {
-		constructor(name, weight, accessible, maxAmount=1) {
+
+		static get stack() { return 64; }
+
+		constructor(name, accessible, maxAmount=1) {
 			this.name = name;
-			this.weight = weight;
 			this.accessible = accessible
 			this.maxAmount = maxAmount;
 		}
@@ -45,25 +47,28 @@
 
 
 	exports.Player = class extends exports.Body {
+
+		static get numberOfSlots() { return 2; }
+
 		constructor(position, radius, health, speed, color, inventory = []) {
 			super(position, radius);
 			this.health = health;
 			this.speed = speed;
 			this.setColor(color);
 			this.inventory = inventory;
+			this.slotIndex = 0;
 			this.axis = {
 				x : 0,
 				y : 0
 			}
 
 			this.angle = 0;
-
 			this.fist = {
 				ready : true,
-				range : this.radius,
+				range : this.radius*1.2,
 				delay : 400,
 				dist : this.radius*.65,
-				radius : this.radius*.26,
+				radius : this.radius*.28,
 				hitBox : false
 			};
 		}
@@ -131,11 +136,34 @@
 			y : this.position.y + ((this.fist.dist + this.fist.range)*y)
 			}, this.fist.radius);
 		}
+
+		changeSlot(index) {
+			this.slotIndex = index;
+		}
 	}
 
 
-	//exports.Weapon = class extends
+	exports.Ammo = class extends exports.Item {
+		constructor(name)  {
+			super(name, false, assets.Item.stack);
+		}
+	}
 
 
+	exports.Weapon = class extends exports.Item {
+		constructor(name, fireRate, maxAmmo, ammoType) {
+			super(name, true, 1);
+			this.fireRate = 0;
+			this.maxAmmo = maxAmmo;
+			this.ammoType = ammoType instanceof assets.Ammo ?  ammoType : null;
+		}
+	}
+
+	exports.M4 = class extends exports.Weapon {
+		constructor() {
+			super("M4", 100, 30, 2);
+		}
+	}
+	
 
 })(typeof exports === 'undefined'? this['assets']={}: exports);

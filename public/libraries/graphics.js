@@ -1,4 +1,4 @@
-
+// ~All game grahpical object~
 
 class GraphicPlayer extends assets.Player {
 
@@ -8,14 +8,14 @@ class GraphicPlayer extends assets.Player {
 			launch : 0,
 			angle : .6,
 			speed : 0,
-			side : 0
+			side : 0,
+			handStroke : 2
 		};
 	}
 
 	constructor(position, radius, health, speed, color, inventory = []) {
 		super(position, radius, health, speed, color, inventory);
 		this.stroke = 0;
-		this.handStroke = 2;
 
 		this.damaged = {
 			on : false,
@@ -42,19 +42,27 @@ class GraphicPlayer extends assets.Player {
 		translate(e.x, e.y);
 		rotate(this.angle);
 		ellipse(0, 0, this.radius*2);
-		strokeWeight(this.handStroke);
-		fill(this.color.fist);
-		if (this.fist.ready) {
-			ellipse(this.fist.dist, this.fist.gap, this.fist.radius*2);
-			ellipse(this.fist.dist, -this.fist.gap, this.fist.radius*2);
+		if (this.inventory[this.slotIndex] instanceof assets.Item) {
+			let object = this.inventory[this.slotIndex];
+			if (object.isAccessible()) {
+				object.draw(this.radius, this.fist);
+			}
 		} else {
-			let fist1 = this.fist.side ? 1 : 0;
-			let fist2 = this.fist.side ? 0 : 1;
-			ellipse(this.fist.dist + this.fist.launch * fist1, this.fist.gap - (this.fist.launch * this.fist.angle * fist1), this.fist.radius*2);
-			ellipse(this.fist.dist + this.fist.launch * fist2, -this.fist.gap + (this.fist.launch * this.fist.angle * fist2), this.fist.radius*2);
+			strokeWeight(this.fist.handStroke);
+			fill(this.color.fist);
+			if (this.fist.ready) {
+				ellipse(this.fist.dist, this.fist.gap, this.fist.radius*2);
+				ellipse(this.fist.dist, -this.fist.gap, this.fist.radius*2);
+			} else {
+				let fist1 = this.fist.side ? 1 : 0;
+				let fist2 = this.fist.side ? 0 : 1;
+				ellipse(this.fist.dist + this.fist.launch * fist1, this.fist.gap - (this.fist.launch * this.fist.angle * fist1), this.fist.radius*2);
+				ellipse(this.fist.dist + this.fist.launch * fist2, -this.fist.gap + (this.fist.launch * this.fist.angle * fist2), this.fist.radius*2);
+			}
 		}
 
 		pop();
+		
 		if (showHealth && this.health > 0) {
 			push();
 			translate(e.x, e.y);
@@ -100,5 +108,41 @@ class GraphicPlayer extends assets.Player {
 		this.damaged.on = true;
 		this.damaged.interval = setTimeout(() => { this.damaged.on = false; }, this.damaged.delay);
 		
+	}
+}
+
+
+// ~All game weapons~
+
+
+class GraphicM4 extends assets.M4 {
+	constructor() {
+        super();
+		this.size = {
+			width : 2.2,
+			height : .4
+		}
+	}
+
+	draw(radius, fist) {
+		let w = radius + radius*this.size.width;
+		let h = radius*this.size.height;
+		let f1 = radius;
+		let f2 = radius + (w-radius) * 0.65;
+
+		translate(0, 0);
+		push();
+		fill(255, 255, 255);
+		strokeWeight(1);
+		rectMode(CENTER);
+		rect(w / 2, 0, w, h, 0, 10, 10, 0);
+		pop();
+		push();
+		ellipse(0, 0, radius*2);
+		strokeWeight(fist.handStroke);
+		ellipse(f1, fist.gap*.2, fist.radius*2);
+		ellipse(f2, fist.gap*.3, fist.radius*2);
+		
+		pop();
 	}
 }

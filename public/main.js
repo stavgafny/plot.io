@@ -44,7 +44,7 @@ function setup() {
 			history.pushState(null, '', `/?game=${data.name}`);
 		}
 
-		player = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, []);
+		player = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, [new GraphicM4()]);
 		player.id = data.id;
 		players.length = 0;
 
@@ -180,5 +180,12 @@ function windowResized() {
 function mousePressed(event) {
 	if (event.button === 0) {
 		socket.emit("punch");
+	}
+}
+
+
+function keyPressed(event) {
+	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
+		player.changeSlot(event.keyCode-49);
 	}
 }

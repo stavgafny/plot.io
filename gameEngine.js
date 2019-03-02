@@ -4,7 +4,6 @@ const assets = require('./public/libraries/assets.js');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
-
 const FIXED_DELTATIME = 60;
 exports.io = null;
 const TICK = 60;
@@ -62,13 +61,14 @@ exports.Room = class {
 
   createPlayer(socket=null) {
     let player = new assets.Player({x : 2000, y : 2000}, this.config.radius, this.config.startHp, this.config.speed, this.config.defaultPlayerColor);
-    player.id = this.counter++;
+    player.id = this.counter;
     player.socket = socket;
     return player;
   }
 
   addPlayer(player) {
     this.players.push(player);
+    this.counter++;
   }
 
   isRunning() {

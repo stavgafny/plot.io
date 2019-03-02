@@ -89,6 +89,10 @@ io.sockets.on('connection', (socket) => {
 	socket.on("punch", () => {
 		room.playerPunch(player);
 	});
+	
+	socket.on("changeSlot", (slotNumber) => {
+		room.changePlayerSlot(player, slotNumber);
+	});
 
 
 	socket.on('disconnect', () => {

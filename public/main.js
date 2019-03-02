@@ -55,7 +55,7 @@ function setup() {
 
 
 		socket.on("new", (data) => {
-			let p = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, []);
+			let p = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, [new GraphicM4()]);
 			p.id = data.id;
 			players.push(p);
 		});
@@ -98,6 +98,10 @@ function setup() {
 			}
 		});
 
+		socket.on("changeSlot", (data) => {
+			let p = getPlayerById(data.id);
+			p.changeSlot(data.slot);
+		});
 
 		socket.on("closed", (id) => {
 			let p = getPlayerById(id);
@@ -186,8 +190,8 @@ function mousePressed(event) {
 
 function keyPressed(event) {
 	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
-		player.changeSlot(event.keyCode-49);
+		socket.emit("changeSlot", event.keyCode-49);
 	} else if (event.keyCode === 88) {
-		player.changeSlot(-1);
+		socket.emit("changeSlot", -1);
 	}
 }

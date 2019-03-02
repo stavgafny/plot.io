@@ -134,4 +134,11 @@ exports.Room = class {
     exports.io.sockets.in(this.get()).emit('hp:d', data);
   }
 
+
+  changePlayerSlot(player, slot) {
+    player.changeSlot(slot);
+    exports.io.sockets.in(this.get()).emit("changeSlot", {slot : player.slotIndex, id : player.id});
+
+  }
+
 }

@@ -187,5 +187,7 @@ function mousePressed(event) {
 function keyPressed(event) {
 	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
 		player.changeSlot(event.keyCode-49);
+	} else if (event.keyCode === 88) {
+		player.changeSlot(-1);
 	}
 }

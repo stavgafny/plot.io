@@ -27,6 +27,18 @@ const DEFAULT_ROOM = {
 
 
 exports.Room = class {
+
+  static stringifyInventory(player) {
+    let items = [];
+    player.inventory.forEach((item) => {
+      items.push(item.id);
+      
+      //console.log(Object.keys(assets));
+    });
+    return items;
+  }
+
+
   constructor(name, type, config={}, map={}) {
     this.name = name;
     this.type = type;
@@ -49,18 +61,20 @@ exports.Room = class {
       radius : player.radius,
       health : 0,
       speed : player.speed,
-      color : player.color,
-      id : player.id
+      color: player.color,
+      inventory: exports.Room.stringifyInventory(player),
+      index : player.slotIndex,
+      id: player.id
     };
     if (this.config.showHealth) {
       p.health = player.health;
     }
-    return p;
+      return p;
   }
 
 
   createPlayer(socket=null) {
-    let player = new assets.Player({x : 2000, y : 2000}, this.config.radius, this.config.startHp, this.config.speed, this.config.defaultPlayerColor);
+    let player = new assets.Player({x : 2000, y : 2000}, this.config.radius, this.config.startHp, this.config.speed, this.config.defaultPlayerColor, [new assets.M4()]);
     player.id = this.counter;
     player.socket = socket;
     return player;

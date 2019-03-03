@@ -33,6 +33,15 @@ function getPlayerById(id) {
 	}
 }
 
+function stringifyInventory(idInventory) {
+	let inventory = [];
+	idInventory.forEach((id) => {
+		let item = Object.keys(assets)[id];
+		inventory.push(graphics[item] ? new graphics[item]() : new assets[item]())
+	});
+	return inventory;
+}
+
 
 function setup() {
 	frameRate(144);
@@ -40,13 +49,16 @@ function setup() {
 	createCanvas(window.innerWidth, window.innerHeight);
 
 	socket.on("join", (data) => {
+
+		console.log(Object.values(assets));
 		if (data.name !== undefined) {
 			history.pushState(null, '', `/?game=${data.name}`);
 		}
 
-		player = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, [new GraphicM4()]);
+		player = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
 		player.id = data.id;
 		players.length = 0;
+		player.changeSlot(data.index);
 
 		socket.on("players", (roomPlayers) => {
 			players.length = 0;
@@ -55,8 +67,9 @@ function setup() {
 
 
 		socket.on("new", (data) => {
-			let p = new GraphicPlayer(data.position, data.radius, data.health, data.speed, data.color, [new GraphicM4()]);
+			let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
 			p.id = data.id;
+			p.changeSlot(data.index);
 			players.push(p);
 		});
 

@@ -104,7 +104,7 @@ exports.Room = class {
           for (let p = 0; p < this.players.length && player.fist.hitBox; p++) {
             if (this.players[p] !== player) {
               if (hitBox.collide(this.players[p])) {
-                this.damagePlayer(this.players[p], this.config.playerFistDamage);
+                setTimeout(() => this.damagePlayer(this.players[p], this.config.playerFistDamage), 0);
                 player.fist.hitBox = false;
               }
             }

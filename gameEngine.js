@@ -96,7 +96,7 @@ exports.Room = class {
       for (let i = 0; i < this.players.length; i++) {
         let player = this.players[i];
         player.update(this.deltaTime);
-        exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
+        //exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
 
         if (player.fist.hitBox) {
           let hitBox = player.getHitBox();
@@ -128,7 +128,7 @@ exports.Room = class {
   setPlayerAxis(player, axis) {
     player.setAxis(axis);
     exports.io.sockets.in(this.get()).emit('axis', {id : player.id, axis : player.axis});
-    //exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
+    exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
 
   }
 

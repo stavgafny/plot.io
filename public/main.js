@@ -33,7 +33,7 @@ function getPlayerById(id) {
 	}
 }
 
-function stringifyInventory(idInventory) {
+function stringifyInventory(idInventory=[]) {
 	let inventory = [];
 	idInventory.forEach((id) => {
 		let item = Object.keys(assets)[id];
@@ -49,8 +49,7 @@ function setup() {
 	createCanvas(window.innerWidth, window.innerHeight);
 
 	socket.on("join", (data) => {
-
-		console.log(Object.values(assets));
+		
 		if (data.name !== undefined) {
 			history.pushState(null, '', `/?game=${data.name}`);
 		}

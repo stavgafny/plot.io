@@ -5,17 +5,17 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 let socket;
 let player;
 const players = [];
-const CAMERA = {x : 0, y : 0};
+const CAMERA = { x: 0, y: 0 };
 const game = {
-	fps : 60,
-	deltaTime : 0
+	fps: 60,
+	deltaTime: 0
 };
 
 const KEYS = {
-	left : 65,
-	right : 68,
-	up : 87,
-	down : 83
+	left: 65,
+	right: 68,
+	up: 87,
+	down: 83
 }
 const FIXED_DELTATIME = 60;
 const GROUND_COLOR = [128, 175, 73];
@@ -33,7 +33,7 @@ function getPlayerById(id) {
 	}
 }
 
-function stringifyInventory(idInventory=[]) {
+function stringifyInventory(idInventory = []) {
 	let inventory = [];
 	idInventory.forEach((id) => {
 		let item = Object.keys(assets)[id];
@@ -49,7 +49,7 @@ function setup() {
 	createCanvas(window.innerWidth, window.innerHeight);
 
 	socket.on("join", (data) => {
-		
+
 		if (data.name !== undefined) {
 			history.pushState(null, '', `/?game=${data.name}`);
 		}
@@ -58,11 +58,6 @@ function setup() {
 		player.id = data.id;
 		players.length = 0;
 		player.changeSlot(data.index);
-
-		socket.on("players", (roomPlayers) => {
-			players.length = 0;
-			players.push(...roomPlayers);
-		});
 
 
 		socket.on("new", (data) => {
@@ -105,14 +100,40 @@ function setup() {
 
 		socket.on("punch", (data) => {
 			let p = getPlayerById(data.id);
+			if (p.getCurrentSlot()) {
+				p.changeSlot(-1);
+			}
+			
 			if (p.fist.ready) {
 				p.punch(data.side);
+			}
+		});
+
+		socket.on("action", (data) => {
+			let p = getPlayerById(data.id);
+			if (p.getSlotIndex() !== data.index) {
+				p.changeSlot(data.index);
+			}
+			let object = p.getCurrentSlot();
+			if (object) {
+				if (object.isAccessible()) {
+					object.use();
+				}
 			}
 		});
 
 		socket.on("changeSlot", (data) => {
 			let p = getPlayerById(data.id);
 			p.changeSlot(data.slot);
+		});
+
+		socket.on("use", (data) => {
+			let p = getPlayerById(data.id);
+			if (p.getSlotIndex() !== data.index) {
+				p.changeSlot(data.index);
+			}
+			p.use();
+			console.log(data);
 		});
 
 		socket.on("closed", (id) => {
@@ -164,19 +185,19 @@ function draw() {
 		p.draw(true);
 	});
 	player.draw(false);
-	let angle = toAngle({x : mouseX, y : mouseY}, {x : width / 2, y : height / 2});
+	let angle = toAngle({ x: mouseX, y: mouseY }, { x: width / 2, y: height / 2 });
 	if (player.getAngle() !== angle) {
 		socket.emit("a", angle);
 	}
 	drawStats();
 	push();
-	translate(width-20, 30);
+	translate(width - 20, 30);
 	textAlign(RIGHT);
 	textSize(20);
 	fill(255);
 	text(`X: ${player.position.x.toFixed(0)} Y: ${player.position.y.toFixed(0)}`, 0, 0);
 	fill(255);
-	translate(-width+30, 0);
+	translate(-width + 30, 0);
 	textAlign(LEFT);
 	text(`Fps : ${floor(game.fps)}`, 0, 0);
 	pop();
@@ -194,15 +215,15 @@ function windowResized() {
 
 
 function mousePressed(event) {
-	if (event.button === 0 && !player.getCurrentSlot()) {
-		socket.emit("punch");
+	if (event.button == 0) {
+		socket.emit("action");
 	}
 }
 
 
 function keyPressed(event) {
 	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
-		socket.emit("changeSlot", event.keyCode-49);
+		socket.emit("changeSlot", event.keyCode - 49);
 	} else if (event.keyCode === 88) {
 		socket.emit("changeSlot", -1);
 	}

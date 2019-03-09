@@ -45,22 +45,6 @@ class Body {
     }
 }
 
-class Ammo extends Item {
-    constructor(name) {
-        super(name, false, Item.stack);
-    }
-}
-
-
-class Weapon extends Item {
-    constructor(name, fireRate, maxAmmo, ammoType) {
-        super(name, true, 1);
-        this.fireRate = 0;
-        this.maxAmmo = maxAmmo;
-        this.ammoType = ammoType instanceof Ammo ? ammoType : null;
-    }
-}
-
 
 // ~All game assets~
 
@@ -161,6 +145,10 @@ class Weapon extends Item {
             }, this.fist.radius);
         }
 
+        getSlotIndex() {
+            return this.slotIndex;
+        }
+
         changeSlot(index) {
             this.slotIndex = index;
         }
@@ -170,10 +158,32 @@ class Weapon extends Item {
         }
     };
 
+    exports.Ammo = class extends Item {
+        constructor(name) {
+            super(name, false, Item.stack);
+        }
+    };  
+    
+    exports.Weapon = class extends Item {
+        constructor(name, fireRate, maxAmmo, isAuto, ammoType, recoil, range) {
+            super(name, true, 1);
+            this.fireRate = fireRate;
+            this.maxAmmo = maxAmmo;
+            this.isAuto = isAuto;
+            this.ammoType = ammoType instanceof exports.Ammo ? ammoType : null;
+            this.recoil = recoil;
+            this.range = range;
+        }
 
-    exports.M4 = class extends Weapon {
+        use() {
+            console.log(`${this.name} shot!`);
+        }
+    };
+
+
+    exports.M4 = class extends exports.Weapon {
         constructor() {
-            super("M4", 100, 30, 2);
+            super("M4", 100, 30, true, null, 0.6, 50);
         }
     };
 	

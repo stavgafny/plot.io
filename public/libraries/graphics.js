@@ -121,27 +121,38 @@
 				width : 2.2,
 				height : .4
 			}
+			this.pulse = 0.65;
+			this.launch = 0;
 		}
 
 		draw(radius, fist) {
 			let w = radius + radius*this.size.width;
 			let h = radius*this.size.height;
-			let f1 = radius;
+			let f1 = radius*1.05;
 			let f2 = radius + (w-radius) * 0.65;
+
+			let launch = this.launch * (radius * this.pulse);
 
 			translate(0, 0);
 			push();
 			fill(255, 255, 255);
 			strokeWeight(1);
 			rectMode(CENTER);
-			rect(w / 2, 0, w, h, 0, 10, 10, 0);
+			rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
 			pop();
 			push();
 			ellipse(0, 0, radius*2);
 			strokeWeight(fist.handStroke);
-			ellipse(f1, fist.gap*.2, fist.radius*2);
-			ellipse(f2, fist.gap*.3, fist.radius*2);
+			ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
+			ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
 			pop();
+
+			this.launch = Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0);
+		}
+		
+		use() {
+			//super.use();
+			this.launch = this.pulse;
 		}
 	};
 

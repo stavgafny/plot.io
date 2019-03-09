@@ -20,9 +20,9 @@ gameEngine.io = io;
 const rooms = [];
 rooms.push(
 	new gameEngine.Room("1", "FFA"),
-	new gameEngine.Room("2", "FFA", {showHealth : true}),
-	new gameEngine.Room("3", "FFA", {radius : 50, defaultPlayerColor : {stroke : [255, 255, 0], body : [100, 200, 200]}, startHp : 10, speed : 8})
-	);
+	new gameEngine.Room("2", "FFA", { showHealth: true }),
+	new gameEngine.Room("3", "FFA", { radius: 50, defaultPlayerColor: { stroke: [255, 255, 0], body: [100, 200, 200] }, startHp: 10, speed: 8 })
+);
 
 function validRoom(room) {
 	if (room)
@@ -55,7 +55,7 @@ rooms[0].run();
 io.sockets.on('connection', (socket) => {
 	console.log(`New user has joined: ${socket.id}`);
 	const get = socket.handshake.headers.referer;
-	const reqRoom = get.lastIndexOf(GET)+1 ? get.substring(get.lastIndexOf(GET) + GET.length) : "";
+	const reqRoom = get.lastIndexOf(GET) + 1 ? get.substring(get.lastIndexOf(GET) + GET.length) : "";
 	let room = getRoomByName(reqRoom);
 	let redirect = false;
 	if (!validRoom(room)) {
@@ -67,8 +67,8 @@ io.sockets.on('connection', (socket) => {
 	const player = room.createPlayer(socket);
 	const playerData = room.strip(player);
 	io.sockets.in(room.get()).emit('new', playerData);
-	Object.assign(playerData, {health : player.health});
-	socket.emit("join", redirect ? Object.assign({name : room.get()}, playerData) : playerData);
+	Object.assign(playerData, { health: player.health });
+	socket.emit("join", redirect ? Object.assign({ name: room.get() }, playerData) : playerData);
 	room.players.forEach((p) => {
 		socket.emit("new", room.strip(p));
 	});
@@ -78,22 +78,21 @@ io.sockets.on('connection', (socket) => {
 
 
 	socket.on("a", (angle) => {
-			player.setAngle(angle);
-			io.sockets.in(room.get()).emit('a', {id : player.id, angle : angle});
+		player.setAngle(angle);
+		io.sockets.in(room.get()).emit('a', { id: player.id, angle: angle });
 	});
 
 	socket.on("axis", (axis) => {
 		room.setPlayerAxis(player, axis);
 	});
 
-	socket.on("punch", () => {
-		room.playerPunch(player);
-	});
-	
 	socket.on("changeSlot", (slotNumber) => {
 		room.changePlayerSlot(player, slotNumber);
 	});
 
+	socket.on("action", () => {
+		room.playerAction(player);
+	});
 
 	socket.on('disconnect', () => {
 		io.sockets.in(room.get()).emit('closed', player.id);

@@ -6,7 +6,7 @@ const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
 const FIXED_DELTATIME = 60;
 exports.io = null;
-const TICK = 60;
+const TICK = 30;
 
 
 const DEFAULT_ROOM = {

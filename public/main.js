@@ -136,24 +136,24 @@ function draw() {
 
 	let axis = player.getAxis();
 	if (keyIsDown(KEYS.left)) {
-		player.setAxis({x : -1});
+		axis.x = -1;
 	} else {
-		player.setAxis({x : 0});
+		axis.x = 0;
 		if (keyIsDown(KEYS.right)) {
-			player.setAxis({x : 1});
+			axis.x = 1;
 		}
 	}
 	if (keyIsDown(KEYS.up)) {
-		player.setAxis({y : -1});
+		axis.y = -1;
 	} else {
-		player.setAxis({y : 0});
+		axis.y = 0;
 		if (keyIsDown(KEYS.down)) {
-			player.setAxis({y : 1});
+			axis.y = 1;
 		}
 	}
 
 	if (JSON.stringify(axis) !== JSON.stringify(player.getAxis())) {
-		socket.emit("axis", player.getAxis());
+		socket.emit("axis", axis);
 	}
 
 	player.update(game.deltaTime);

@@ -45,6 +45,7 @@ exports.Room = class {
 		this.config = Object.assign({}, DEFAULT_ROOM.config, config);
 		this.map = Object.assign({}, DEFAULT_ROOM.map, map);
 		this.players = [];
+		this.bullets = [];
 
 		this.worker = null;
 		this.deltaTime = 0;
@@ -110,10 +111,19 @@ exports.Room = class {
 						}
 					}
 				}
+			}
 
+			console.log(this.bullets.map((a) => Math.floor(a.range)));
+			for (let i = 0; i < this.bullets.length; i++) {
+				if (this.bullets[i].outOfRange()) {
+					this.bullets.splice(i, 1);
+				} else {
+					this.bullets[i].update(this.deltaTime);
+				}
 			}
 			this.deltaTime = FIXED_DELTATIME / (1000 / (thisLoop - lastLoop));
 			lastLoop = thisLoop;
+			
 		}, 1000 / TICK);
 	}
 	stop() {
@@ -153,11 +163,15 @@ exports.Room = class {
 		let object = player.getCurrentSlot();
 		if (object) {
 			if (object.isAccessible()) {
-				if (object instanceof assets.Weapon) {
-					object.use();
-					exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
-					return null;
+				if (object.isReady()) {
+					let bullet = object.use(player.position, player.angle);
+					if (bullet) {
+						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
+						this.bullets.push(bullet);
+						return null;
+					}
 				}
+				return null;
 			}
 		}
 

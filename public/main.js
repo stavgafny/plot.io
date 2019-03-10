@@ -117,7 +117,9 @@ function setup() {
 			let object = p.getCurrentSlot();
 			if (object) {
 				if (object.isAccessible()) {
-					object.use();
+					//if (object.isReady()) {
+					object.use(player.position, player.angle);
+					//}
 				}
 			}
 		});
@@ -125,15 +127,6 @@ function setup() {
 		socket.on("changeSlot", (data) => {
 			let p = getPlayerById(data.id);
 			p.changeSlot(data.slot);
-		});
-
-		socket.on("use", (data) => {
-			let p = getPlayerById(data.id);
-			if (p.getSlotIndex() !== data.index) {
-				p.changeSlot(data.index);
-			}
-			p.use();
-			console.log(data);
 		});
 
 		socket.on("closed", (id) => {

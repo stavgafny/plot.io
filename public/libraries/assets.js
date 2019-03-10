@@ -45,6 +45,30 @@ class Body {
     }
 }
 
+class Ammo extends Item {
+    constructor(name) {
+        super(name, false, Item.stack);
+    }
+};
+
+class Bullet {
+    constructor(position, velocity, radius, range) {
+        this.position = position;
+        this.velocity = velocity;
+        this.radius = radius;
+        this.range = range;
+    }
+
+    outOfRange() {
+        return this.range <= 0;
+    }
+
+    update(deltaTime=1) {
+        this.position.x += this.velocity.x * deltaTime;
+        this.position.y += this.velocity.y * deltaTime;
+        this.range = Math.max(this.range - deltaTime, 0);
+    }
+}
 
 // ~All game assets~
 
@@ -116,7 +140,7 @@ class Body {
         }
 
 
-        update(deltaTime) {
+        update(deltaTime=1) {
             this.position.x += (this.speed * this.axis.x) * deltaTime;
             this.position.y += (this.speed * this.axis.y) * deltaTime;
         }
@@ -158,34 +182,52 @@ class Body {
         }
     };
 
-    exports.Ammo = class extends Item {
-        constructor(name) {
-            super(name, false, Item.stack);
-        }
-    };  
     
     exports.Weapon = class extends Item {
-        constructor(name, fireRate, maxAmmo, isAuto, ammoType, recoil, range) {
+        constructor(name, fireRate, maxAmmo, velocity, recoil, range, isAuto, bullet) {
             super(name, true, 1);
             this.fireRate = fireRate;
             this.maxAmmo = maxAmmo;
-            this.isAuto = isAuto;
-            this.ammoType = ammoType instanceof exports.Ammo ? ammoType : null;
+            this.velocity = velocity;
             this.recoil = recoil;
             this.range = range;
+            this.isAuto = isAuto;
+            this.bullet = bullet;
+            this.ready = true;
         }
 
-        use() {
-            console.log(`${this.name} shot!`);
+        isReady() {
+            return this.ready;
+        }
+
+        use(position, angle) {
+            let velocity = {
+                x : Math.cos(angle) * this.velocity,
+                y : Math.sin(angle) * this.velocity
+            };
+            
+            this.ready = false;
+            setTimeout(() => {
+                this.ready = true;
+            }, this.fireRate);
+
+            return new Bullet(position, velocity, this.bullet.radius, this.range);
         }
     };
 
 
     exports.M4 = class extends exports.Weapon {
         constructor() {
-            super("M4", 100, 30, true, null, 0.6, 50);
+            super("M4", 80, 30, 2.2, 0.6, 50, true, exports.A556);
         }
     };
+
+    exports.A556 = class extends Ammo {
+        static get radius() { return 10; }
+        constructor() {
+            super("A556");
+        }
+    }
 	
 
 })(typeof exports === 'undefined'? this['assets']={}: exports);

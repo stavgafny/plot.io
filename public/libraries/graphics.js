@@ -93,7 +93,7 @@
 			return super.punch(side);
 		}
 
-		update(deltaTime) {
+		update(deltaTime=1) {
 			super.update(deltaTime);
 			if (!this.fist.ready) {
 				this.fist.launch = Math.min(Math.max(this.fist.launch + (this.fist.speed * deltaTime), 0), this.fist.range);
@@ -150,8 +150,8 @@
 			this.launch = Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0);
 		}
 		
-		use() {
-			//super.use();
+		use(position, angle) {
+			//super.use(position, angle);
 			this.launch = this.pulse;
 		}
 	};

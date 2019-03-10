@@ -126,7 +126,7 @@ class Bullet extends Body {
         }
 
         setHealth(health) {
-            this.health = health;
+            this.health = Math.max(health, 0);
         }
 
         setColor(color) {
@@ -234,7 +234,7 @@ class Bullet extends Body {
 				width : 2.2,
 				height : .4
 			}
-            super("M4", 80, 30, 9.2, 6, 0.6, 100, true, size, exports.A556);
+            super("M4", 100, 30, 13.2, 16, 0.6, 60, true, size, exports.A556);
         }
     };
 
@@ -243,7 +243,23 @@ class Bullet extends Body {
         constructor() {
             super("A556");
         }
-    }
-	
+    };
+    
+    exports.Semi = class extends exports.Weapon {
+        constructor() {
+            let size = {
+				width : 2.4,
+				height : .42
+			}
+            super("Semi", 160, 16, 15.2, 24, 0, 80, false, size, exports.A762);
+        }
+    };
+    
+    exports.A762 = class extends Ammo {
+        static get radius() { return 8; }
+        constructor() {
+            super("A762");
+        }
+    };
 
 })(typeof exports === 'undefined'? this['assets']={}: exports);

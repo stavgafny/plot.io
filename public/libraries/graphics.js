@@ -111,13 +111,28 @@
 		}
 	};
 
+	exports.Bullet = class extends Bullet {
+		constructor(position, radius, velocity, range, damage, color) {
+			super(position, radius, velocity, range, damage);
+			this.color = color;
+		}
+
+		draw() {
+			let e = fixedCamera(this.position);
+			push();
+			translate(...Object.values(e));
+			ellipse(0, 0, this.radius*2);
+			pop();
+		}
+	};
+
 
 	// ~All game weapons~
 
 	exports.M4 = class extends assets.M4 {
 		constructor() {
 	        super();
-			this.pulse = 0.65;
+			this.pulse = 0.6;
 			this.launch = 0;
 		}
 
@@ -159,18 +174,49 @@
 		}
 	}
 
-	exports.Bullet = class extends Bullet {
-		constructor(position, radius, velocity, range, damage, color) {
-			super(position, radius, velocity, range, damage);
-			this.color = color;
+	exports.Semi = class extends assets.Semi {
+		constructor() {
+	        super();
+			this.pulse = 0.7;
+			this.launch = 0;
 		}
 
-		draw() {
-			let e = fixedCamera(this.position);
+		draw(radius, fist) {
+			let w = radius + radius*this.size.width;
+			let h = radius*this.size.height;
+			let f1 = radius*1.05;
+			let f2 = radius + (w-radius) * 0.65;
+
+			let launch = this.launch * (radius * this.pulse);
+
+			translate(0, 0);
 			push();
-			translate(...Object.values(e));
-			ellipse(0, 0, this.radius*2);
+			fill(255, 255, 255);
+			strokeWeight(1);
+			rectMode(CENTER);
+			rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
 			pop();
+			push();
+			ellipse(0, 0, radius*2);
+			strokeWeight(fist.handStroke);
+			ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
+			ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
+			pop();
+
+			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
+		}
+		
+		use(position, angle, radius) {
+			//super.use(position, angle, radius);
+			this.launch = this.pulse;
+		}
+	};
+
+	
+	exports.A762 = class extends assets.A762 {
+		constructor() {
+			super();
+			this.color = [50, 50, 50];
 		}
 	}
 

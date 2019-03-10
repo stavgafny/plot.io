@@ -1,11 +1,12 @@
 'use strict';
 
-const assets = require('./public/libraries/assets.js');
 const fs = require('fs');
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
 const FIXED_DELTATIME = 60;
 exports.io = null;
+exports.assets = null;
+
 const TICK = 30;
 
 
@@ -14,6 +15,7 @@ const DEFAULT_ROOM = {
 		startHp: 100.0,
 		radius: 30,
 		speed: 3.6,
+		startInventory : [],
 		maxPlayers: 10,
 		defaultPlayerColor: config.defaultPlayerColor,
 		playerFistDamage: 20,
@@ -32,8 +34,6 @@ exports.Room = class {
 		let items = [];
 		player.inventory.forEach((item) => {
 			items.push(item.id);
-
-			//console.log(Object.keys(assets));
 		});
 		return items;
 	}
@@ -76,9 +76,19 @@ exports.Room = class {
 
 
 	createPlayer(socket = null) {
-		let player = new assets.Player({ x: 2000, y: 2000 }, this.config.radius, this.config.startHp, this.config.speed, this.config.defaultPlayerColor, [new assets.M4()]);
+		let player = new exports.assets.Player(
+			{ x: 2000, y: 2000 },
+			this.config.radius,
+			this.config.startHp,
+			this.config.speed,
+			this.config.defaultPlayerColor,
+			this.config.startInventory.map((object) => new object())
+		);
+
+
 		player.id = this.counter;
 		player.socket = socket;
+		player.hold = false;
 		return player;
 	}
 
@@ -100,7 +110,9 @@ exports.Room = class {
 				player.update(this.deltaTime);
 				//exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
 
-				if (player.fist.hitBox) {
+				if (player.getCurrentSlot() && player.hold) {
+					this.playerAction(player);
+				} else if (player.fist.hitBox) {
 					let hitBox = player.getHitBox();
 
 					for (let p = 0; p < this.players.length && player.fist.hitBox; p++) {
@@ -187,6 +199,9 @@ exports.Room = class {
 							range : bullet.range,
 							damage : bullet.damage
 						});
+						if (!object.isAuto) {
+							player.hold = false;
+						}
 						return null;
 					}
 				}

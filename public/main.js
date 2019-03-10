@@ -251,7 +251,13 @@ function windowResized() {
 
 function mousePressed(event) {
 	if (event.button == 0) {
-		socket.emit("action");
+		socket.emit("action+");
+	}
+}
+
+function mouseReleased(event) {
+	if (event.button == 0) {
+		socket.emit("action-");
 	}
 }
 

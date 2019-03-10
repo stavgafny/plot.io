@@ -5,6 +5,7 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 let socket;
 let player;
 const players = [];
+const bullets = [];
 const CAMERA = { x: 0, y: 0 };
 const game = {
 	fps: 60,
@@ -32,6 +33,12 @@ function getPlayerById(id) {
 		}
 	}
 }
+
+function getElementById(id) {
+	let item = Object.keys(assets)[id];
+	return graphics[item] ? graphics[item] : assets[item];
+}
+
 function getAssetById(id) {
 	let item = Object.keys(assets)[id];
 	return graphics[item] ? new graphics[item]() : new assets[item]()
@@ -59,6 +66,7 @@ function setup() {
 
 		player = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
 		player.id = data.id;
+		player.angle = data.angle;
 		players.length = 0;
 		player.changeSlot(data.index);
 
@@ -66,6 +74,7 @@ function setup() {
 		socket.on("new", (data) => {
 			let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
 			p.id = data.id;
+			p.angle = data.angle;
 			p.changeSlot(data.index);
 			players.push(p);
 		});
@@ -120,9 +129,12 @@ function setup() {
 			let object = p.getCurrentSlot();
 			if (object) {
 				if (object.isAccessible()) {
-					//if (object.isReady()) {
-					object.use(player.getPosition(), player.angle);
-					//}
+					/*
+					if (object.isReady()) {
+						object.use(player.getPosition(), player.angle);
+					}
+					*/
+					object.use(player.getPosition(), player.angle, player.radius);
 				}
 			}
 		});
@@ -132,8 +144,11 @@ function setup() {
 			p.changeSlot(data.slot);
 		});
 
-		socket.on("bullet", (data) => {
-			console.log(getAssetById(data.index));
+		socket.on("bullet", (bullet) => {
+			let ammo = getElementById(bullet.id);
+			let b = new graphics.Bullet(bullet.position, ammo.radius, bullet.velocity, bullet.range, bullet.damage, ammo.color);
+			b.id = bullet.id;
+			bullets.push(b);
 		});
 
 		socket.on("closed", (id) => {
@@ -175,6 +190,26 @@ function draw() {
 
 	if (JSON.stringify(axis) !== JSON.stringify(player.getAxis())) {
 		socket.emit("axis", axis);
+	}
+	
+	for (let i = 0; i < bullets.length; i++) {
+		if (bullets[i].outOfRange()) {
+			bullets.splice(i, 1);
+		} else {
+			let allPlayers = [player, ...players];
+			let hit = false;
+			for (let p = 0; p < allPlayers.length && !hit; p++) {
+				if (allPlayers[p].collide(bullets[i])) {
+					hit = true;
+					//allPlayers[p].setDamaged();
+					bullets.splice(i, 1);
+				}
+			}
+			if (!hit) {
+				bullets[i].update(game.deltaTime);
+				bullets[i].draw();
+			}
+		};
 	}
 
 	player.update(game.deltaTime);

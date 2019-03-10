@@ -117,10 +117,6 @@
 	exports.M4 = class extends assets.M4 {
 		constructor() {
 	        super();
-			this.size = {
-				width : 2.2,
-				height : .4
-			}
 			this.pulse = 0.65;
 			this.launch = 0;
 		}
@@ -150,8 +146,8 @@
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
-		use(position, angle) {
-			//super.use(position, angle);
+		use(position, angle, radius) {
+			//super.use(position, angle, radius);
 			this.launch = this.pulse;
 		}
 	};
@@ -159,7 +155,22 @@
 	exports.A556 = class extends assets.A556 {
 		constructor() {
 			super();
-			console.log("Graphic!");
+			this.color = [255, 255, 255];
+		}
+	}
+
+	exports.Bullet = class extends Bullet {
+		constructor(position, radius, velocity, range, damage, color) {
+			super(position, radius, velocity, range, damage);
+			this.color = color;
+		}
+
+		draw() {
+			let e = fixedCamera(this.position);
+			push();
+			translate(...Object.values(e));
+			ellipse(0, 0, this.radius*2);
+			pop();
 		}
 	}
 

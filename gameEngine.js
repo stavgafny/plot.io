@@ -61,6 +61,7 @@ exports.Room = class {
 			position: player.position,
 			radius: player.radius,
 			health: 0,
+			angle : player.angle,
 			speed: player.speed,
 			color: player.color,
 			inventory: exports.Room.stringifyInventory(player),
@@ -117,7 +118,18 @@ exports.Room = class {
 				if (this.bullets[i].outOfRange()) {
 					this.bullets.splice(i, 1);
 				} else {
-					this.bullets[i].update(this.deltaTime);
+					let hit = false;
+					for (let p = 0; p < this.players.length && !hit; p++) {
+						if (this.players[p].collide(this.bullets[i])) {
+							hit = true;
+							let damage = this.bullets[i].damage;
+							setTimeout(() => this.damagePlayer(this.players[p], damage), 0);
+							this.bullets.splice(i, 1);
+						}
+					}
+					if (!hit) {
+						this.bullets[i].update(this.deltaTime);
+					}
 				}
 			}
 
@@ -164,11 +176,17 @@ exports.Room = class {
 		if (object) {
 			if (object.isAccessible()) {
 				if (object.isReady()) {
-					let bullet = object.use(player.getPosition(), player.angle);
+					let bullet = object.use(player.getPosition(), player.angle, player.radius);
 					if (bullet) {
 						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
 						this.bullets.push(bullet);
-						exports.io.sockets.in(this.get()).emit("bullet", { index : new object.bullet().id, position : bullet.position});
+						exports.io.sockets.in(this.get()).emit("bullet", {
+							id : new object.bullet().id,
+							position : bullet.position,
+							velocity : bullet.velocity,
+							range : bullet.range,
+							damage : bullet.damage
+						});
 						return null;
 					}
 				}

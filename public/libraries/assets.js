@@ -36,6 +36,7 @@ class Item {
 }
 
 class Body {
+    // ~rigid body~
     constructor(position, radius) {
         this.position = position;
         this.radius = radius;
@@ -52,10 +53,11 @@ class Ammo extends Item {
 };
 
 class Bullet extends Body {
-    constructor(position, radius, velocity, range) {
+    constructor(position, radius, velocity, range, damage) {
         super(position, radius);
         this.velocity = velocity;
         this.range = range;
+        this.damage = damage;
     }
 
     outOfRange() {
@@ -187,14 +189,16 @@ class Bullet extends Body {
 
     
     exports.Weapon = class extends Item {
-        constructor(name, fireRate, maxAmmo, velocity, recoil, range, isAuto, bullet) {
+        constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, isAuto, size, bullet) {
             super(name, true, 1);
             this.fireRate = fireRate;
             this.maxAmmo = maxAmmo;
             this.velocity = velocity;
+            this.damage = damage;
             this.recoil = recoil;
             this.range = range;
             this.isAuto = isAuto;
+            this.size = size;
             this.bullet = bullet;
             this.ready = true;
         }
@@ -203,7 +207,7 @@ class Bullet extends Body {
             return this.ready;
         }
 
-        use(position, angle) {
+        use(position, angle, radius) {
             let velocity = {
                 x : Math.cos(angle) * this.velocity,
                 y : Math.sin(angle) * this.velocity
@@ -213,20 +217,29 @@ class Bullet extends Body {
             setTimeout(() => {
                 this.ready = true;
             }, this.fireRate);
+            
+            let delta = (radius + (this.size.width * radius)) / this.velocity;
 
-            return new Bullet(position, this.bullet.radius, velocity, this.range);
+            position.x += velocity.x * delta;
+            position.y += velocity.y * delta;
+
+            return new Bullet(position, this.bullet.radius, velocity, this.range, this.damage);
         }
     };
 
 
     exports.M4 = class extends exports.Weapon {
         constructor() {
-            super("M4", 80, 30, 2.2, 0.6, 50, true, exports.A556);
+            let size = {
+				width : 2.2,
+				height : .4
+			}
+            super("M4", 80, 30, 9.2, 6, 0.6, 100, true, size, exports.A556);
         }
     };
 
     exports.A556 = class extends Ammo {
-        static get radius() { return 10; }
+        static get radius() { return 6; }
         constructor() {
             super("A556");
         }

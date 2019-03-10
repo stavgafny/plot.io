@@ -51,11 +51,10 @@ class Ammo extends Item {
     }
 };
 
-class Bullet {
-    constructor(position, velocity, radius, range) {
-        this.position = position;
+class Bullet extends Body {
+    constructor(position, radius, velocity, range) {
+        super(position, radius);
         this.velocity = velocity;
-        this.radius = radius;
         this.range = range;
     }
 
@@ -102,6 +101,10 @@ class Bullet {
                 hitBox: false,
                 side: 0
             };
+        }
+
+        getPosition() {
+            return {x : this.position.x, y : this.position.y};
         }
 
         setPosition(position) {
@@ -211,7 +214,7 @@ class Bullet {
                 this.ready = true;
             }, this.fireRate);
 
-            return new Bullet(position, velocity, this.bullet.radius, this.range);
+            return new Bullet(position, this.bullet.radius, velocity, this.range);
         }
     };
 

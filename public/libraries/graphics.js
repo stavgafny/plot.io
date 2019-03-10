@@ -147,7 +147,7 @@
 			ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
 			pop();
 
-			this.launch = Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0);
+			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
 		use(position, angle) {
@@ -155,5 +155,12 @@
 			this.launch = this.pulse;
 		}
 	};
+
+	exports.A556 = class extends assets.A556 {
+		constructor() {
+			super();
+			console.log("Graphic!");
+		}
+	}
 
 })(typeof exports === 'undefined'? this['graphics']={}: exports);

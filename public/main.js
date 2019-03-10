@@ -32,12 +32,15 @@ function getPlayerById(id) {
 		}
 	}
 }
+function getAssetById(id) {
+	let item = Object.keys(assets)[id];
+	return graphics[item] ? new graphics[item]() : new assets[item]()
+}
 
 function stringifyInventory(idInventory = []) {
 	let inventory = [];
 	idInventory.forEach((id) => {
-		let item = Object.keys(assets)[id];
-		inventory.push(graphics[item] ? new graphics[item]() : new assets[item]())
+		inventory.push(getAssetById(id))
 	});
 	return inventory;
 }
@@ -118,7 +121,7 @@ function setup() {
 			if (object) {
 				if (object.isAccessible()) {
 					//if (object.isReady()) {
-					object.use(player.position, player.angle);
+					object.use(player.getPosition(), player.angle);
 					//}
 				}
 			}
@@ -127,6 +130,10 @@ function setup() {
 		socket.on("changeSlot", (data) => {
 			let p = getPlayerById(data.id);
 			p.changeSlot(data.slot);
+		});
+
+		socket.on("bullet", (data) => {
+			console.log(getAssetById(data.index));
 		});
 
 		socket.on("closed", (id) => {

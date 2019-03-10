@@ -113,7 +113,6 @@ exports.Room = class {
 				}
 			}
 
-			console.log(this.bullets.map((a) => Math.floor(a.range)));
 			for (let i = 0; i < this.bullets.length; i++) {
 				if (this.bullets[i].outOfRange()) {
 					this.bullets.splice(i, 1);
@@ -121,6 +120,7 @@ exports.Room = class {
 					this.bullets[i].update(this.deltaTime);
 				}
 			}
+
 			this.deltaTime = FIXED_DELTATIME / (1000 / (thisLoop - lastLoop));
 			lastLoop = thisLoop;
 			
@@ -164,10 +164,11 @@ exports.Room = class {
 		if (object) {
 			if (object.isAccessible()) {
 				if (object.isReady()) {
-					let bullet = object.use(player.position, player.angle);
+					let bullet = object.use(player.getPosition(), player.angle);
 					if (bullet) {
 						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
 						this.bullets.push(bullet);
+						exports.io.sockets.in(this.get()).emit("bullet", { index : new object.bullet().id, position : bullet.position});
 						return null;
 					}
 				}

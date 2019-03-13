@@ -12,7 +12,7 @@ const TICK = 30;
 
 const DEFAULT_ROOM = {
 	config: {
-		startHp: 100.0,
+		startHealth: 100.0,
 		radius: 30,
 		speed: 3.6,
 		startInventory : [],
@@ -79,7 +79,7 @@ exports.Room = class {
 		let player = new exports.assets.Player(
 			{ x: 2000, y: 2000 },
 			this.config.radius,
-			this.config.startHp,
+			this.config.startHealth,
 			this.config.speed,
 			this.config.defaultPlayerColor,
 			this.config.startInventory.map((object) => new object())

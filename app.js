@@ -22,7 +22,10 @@ gameEngine.io = io;
 
 const rooms = [];
 rooms.push(
-	new gameEngine.Room("1", "FFA", {startInventory : [assets.M4, assets.Semi]}),
+	new gameEngine.Room("1", "FFA", {
+		showHealth : true,
+		startInventory : [assets.M4, assets.Semi]
+	}),
 	new gameEngine.Room("2", "FFA", { showHealth: true }),
 	new gameEngine.Room("3", "FFA", { radius: 50, defaultPlayerColor: { stroke: [255, 255, 0], body: [100, 200, 200] }, startHp: 10, speed: 8 })
 );

@@ -1,4 +1,29 @@
 
+class GraphicsWeapon {
+	static assultDraw(radius, fist) {
+		let w = radius + radius*this.size.width;
+		let h = radius*this.size.height;
+		let f1 = radius*1.05;
+		let f2 = radius + (w-radius) * 0.65;
+
+		let launch = this.launch * (radius * this.pulse);
+		translate(0, 0);
+		push();
+		fill(this.color);
+		strokeWeight(1);
+		rectMode(CENTER);
+		rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
+		pop();
+		push();
+		ellipse(0, 0, radius*2);
+		strokeWeight(fist.handStroke);
+		ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
+		ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
+		pop();
+	}
+}
+
+
 (function(graphics) {
 
 		// ~All game grahpical object~
@@ -34,15 +59,12 @@
 		draw(showHealth) {
 			let e = fixedCamera(this.position);
 			push();
-			stroke(this.color.stroke);
-			if (this.damaged.on) {
-				fill(this.damaged.color);
-			} else {
-				fill(this.color.body);
-			}
-			strokeWeight(this.stroke);
 			translate(e.x, e.y);
 			rotate(this.angle);
+			stroke(this.color.stroke);
+			this.damaged.on ? fill(this.damaged.color) : fill(this.color.body);
+			strokeWeight(this.stroke);
+
 			ellipse(0, 0, this.radius*2);
 			if (this.inventory[this.slotIndex] instanceof Item) {
 				let object = this.inventory[this.slotIndex];
@@ -119,7 +141,7 @@
 
 	};
 
-	graphics.Bullet = class extends assets.Bullet {
+	graphics.Bullet = class extends Bullet {
 		constructor(position, radius, velocity, range, damage, color) {
 			super(position, radius, velocity, range, damage);
 			this.color = color;
@@ -129,43 +151,42 @@
 			let e = fixedCamera(this.position);
 			push();
 			translate(...Object.values(e));
+			fill(this.color);
 			ellipse(0, 0, this.radius*2);
 			pop();
 		}
 	};
 
 
+	// ~All game ammo~
+	
+	graphics.A556 = class extends assets.A556 {
+		static get color() { return [100, 255, 100]; }
+		constructor() {
+			super();
+		}
+	};
+
+	graphics.A762 = class extends assets.A762 {
+		static get color() { return [100, 100, 255]; }
+		constructor() {
+			super();
+		}
+	};
+
 	// ~All game weapons~
 
 	graphics.M4 = class extends assets.M4 {
 		constructor() {
 	        super();
-			this.pulse = 0.6;
+			this.pulse = 0.5;
 			this.launch = 0;
+			this.color = [255, 0, 0];
+			this.graphics = GraphicsWeapon.assultDraw;
 		}
 
 		draw(radius, fist) {
-			let w = radius + radius*this.size.width;
-			let h = radius*this.size.height;
-			let f1 = radius*1.05;
-			let f2 = radius + (w-radius) * 0.65;
-
-			let launch = this.launch * (radius * this.pulse);
-
-			translate(0, 0);
-			push();
-			fill(255, 255, 255);
-			strokeWeight(1);
-			rectMode(CENTER);
-			rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
-			pop();
-			push();
-			ellipse(0, 0, radius*2);
-			strokeWeight(fist.handStroke);
-			ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
-			ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
-			pop();
-
+			this.graphics(radius, fist);
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
@@ -175,42 +196,18 @@
 		}
 	};
 
-	graphics.A556 = class extends assets.A556 {
-		constructor() {
-			super();
-			this.color = [255, 255, 255];
-		}
-	}
 
 	graphics.Semi = class extends assets.Semi {
 		constructor() {
 	        super();
-			this.pulse = 0.7;
+			this.pulse = 0.6;
 			this.launch = 0;
+			this.color = [0, 0, 255];
+			this.graphics = GraphicsWeapon.assultDraw;
 		}
 
 		draw(radius, fist) {
-			let w = radius + radius*this.size.width;
-			let h = radius*this.size.height;
-			let f1 = radius*1.05;
-			let f2 = radius + (w-radius) * 0.65;
-
-			let launch = this.launch * (radius * this.pulse);
-
-			translate(0, 0);
-			push();
-			fill(255, 255, 255);
-			strokeWeight(1);
-			rectMode(CENTER);
-			rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
-			pop();
-			push();
-			ellipse(0, 0, radius*2);
-			strokeWeight(fist.handStroke);
-			ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
-			ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
-			pop();
-
+			this.graphics(radius, fist);
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
@@ -219,13 +216,5 @@
 			this.launch = this.pulse;
 		}
 	};
-
-	
-	graphics.A762 = class extends assets.A762 {
-		constructor() {
-			super();
-			this.color = [50, 50, 50];
-		}
-	}
 
 })(typeof graphics === 'undefined'? this['graphics']={}: graphics);

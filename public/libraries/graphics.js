@@ -1,9 +1,9 @@
 
-(function(exports) {
+(function(graphics) {
 
 		// ~All game grahpical object~
 		
-		exports.Player = class extends assets.Player {
+		graphics.Player = class extends assets.Player {
 
 		static fistProperties(radius) {
 			return {
@@ -27,7 +27,7 @@
 
 			}
 
-			Object.assign(this.fist, exports.Player.fistProperties(this.radius));
+			Object.assign(this.fist, graphics.Player.fistProperties(this.radius));
 		};
 
 
@@ -104,14 +104,22 @@
 			if (this.damaged.on) {
 				clearTimeout(this.damaged.interval);
 			}
-			
 			this.damaged.on = true;
 			this.damaged.interval = setTimeout(() => { this.damaged.on = false; }, this.damaged.delay);
-			
 		}
+
+		changeSlot(index) {
+			let object = super.changeSlot(index);
+			if (object) {
+				if (object.launch) {
+					object.launch = 0;
+				}
+			}
+		}
+
 	};
 
-	exports.Bullet = class extends Bullet {
+	graphics.Bullet = class extends assets.Bullet {
 		constructor(position, radius, velocity, range, damage, color) {
 			super(position, radius, velocity, range, damage);
 			this.color = color;
@@ -129,7 +137,7 @@
 
 	// ~All game weapons~
 
-	exports.M4 = class extends assets.M4 {
+	graphics.M4 = class extends assets.M4 {
 		constructor() {
 	        super();
 			this.pulse = 0.6;
@@ -167,14 +175,14 @@
 		}
 	};
 
-	exports.A556 = class extends assets.A556 {
+	graphics.A556 = class extends assets.A556 {
 		constructor() {
 			super();
 			this.color = [255, 255, 255];
 		}
 	}
 
-	exports.Semi = class extends assets.Semi {
+	graphics.Semi = class extends assets.Semi {
 		constructor() {
 	        super();
 			this.pulse = 0.7;
@@ -206,18 +214,18 @@
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
-		use(position, angle, radius) {
+		use() {
 			//super.use(position, angle, radius);
 			this.launch = this.pulse;
 		}
 	};
 
 	
-	exports.A762 = class extends assets.A762 {
+	graphics.A762 = class extends assets.A762 {
 		constructor() {
 			super();
 			this.color = [50, 50, 50];
 		}
 	}
 
-})(typeof exports === 'undefined'? this['graphics']={}: exports);
+})(typeof graphics === 'undefined'? this['graphics']={}: graphics);

@@ -193,7 +193,7 @@ exports.Room = class {
 						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
 						this.bullets.push(bullet);
 						exports.io.sockets.in(this.get()).emit("bullet", {
-							id : new object.bullet().id,
+							id : object.bullet.id,
 							position : bullet.position,
 							velocity : bullet.velocity,
 							range : bullet.range,

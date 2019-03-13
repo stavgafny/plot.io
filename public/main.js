@@ -39,15 +39,14 @@ function getElementById(id) {
 	return graphics[item] ? graphics[item] : assets[item];
 }
 
-function getAssetById(id) {
-	let item = Object.keys(assets)[id];
-	return graphics[item] ? new graphics[item]() : new assets[item]()
-}
 
 function stringifyInventory(idInventory = []) {
 	let inventory = [];
 	idInventory.forEach((id) => {
-		inventory.push(getAssetById(id))
+		let object = getElementById(id);
+		if (object) {
+			inventory.push(new object());
+		}
 	});
 	return inventory;
 }

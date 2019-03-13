@@ -50,25 +50,6 @@ class Ammo extends Item {
     constructor(name) {
         super(name, false, Item.stack);
     }
-};
-
-class Bullet extends Body {
-    constructor(position, radius, velocity, range, damage) {
-        super(position, radius);
-        this.velocity = velocity;
-        this.range = range;
-        this.damage = damage;
-    }
-
-    outOfRange() {
-        return this.range <= 0;
-    }
-
-    update(deltaTime=1) {
-        this.position.x += this.velocity.x * deltaTime;
-        this.position.y += this.velocity.y * deltaTime;
-        this.range = Math.max(this.range - deltaTime, 0);
-    }
 }
 
 // ~All game assets~
@@ -179,11 +160,35 @@ class Bullet extends Body {
         }
 
         changeSlot(index) {
-            this.slotIndex = index;
+            let object = this.getCurrentSlot();
+            if (this.slotIndex !== index) {
+                this.slotIndex = index;
+                return object;
+            }
+            return null;
         }
 
         getCurrentSlot() {
             return this.inventory[this.slotIndex];
+        }
+    };
+
+    exports.Bullet = class extends Body {
+        constructor(position, radius, velocity, range, damage) {
+            super(position, radius);
+            this.velocity = velocity;
+            this.range = range;
+            this.damage = damage;
+        }
+    
+        outOfRange() {
+            return this.range <= 0;
+        }
+    
+        update(deltaTime=1) {
+            this.position.x += this.velocity.x * deltaTime;
+            this.position.y += this.velocity.y * deltaTime;
+            this.range = Math.max(this.range - deltaTime, 0);
         }
     };
 
@@ -223,7 +228,7 @@ class Bullet extends Body {
             position.x += velocity.x * delta;
             position.y += velocity.y * delta;
 
-            return new Bullet(position, this.bullet.radius, velocity, this.range, this.damage);
+            return new exports.Bullet(position, this.bullet.radius, velocity, this.range, this.damage);
         }
     };
 
@@ -261,5 +266,10 @@ class Bullet extends Body {
             super("A762");
         }
     };
+
+    for(let i = 0; i < Object.keys(exports).length; i++) {
+        let object = exports[Object.keys(exports)[i]];
+        object.id = i;
+      };
 
 })(typeof exports === 'undefined'? this['assets']={}: exports);

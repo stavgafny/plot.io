@@ -155,14 +155,22 @@ function setup() {
 			let i = players.indexOf(p);
 			players.splice(i, 1);
 		});
+
+		socket.on("disconnect", () => {
+			player = null; //!player;
+		});
 	});
 }
 
 let lastLoop = new Date();
 function draw() {
-
 	if (!player) {
-		background(55);
+		background(25, 25, 25);
+		translate(width / 2, height / 2);
+		textAlign(CENTER);
+		textSize(width / 50);
+		fill(255, 255, 255);
+		text("You are dead...", 0, 0);
 		return null;
 	}
 	let thisLoop = new Date();
@@ -235,8 +243,6 @@ function draw() {
 	textAlign(LEFT);
 	text(`Fps : ${floor(game.fps)}`, 0, 0);
 	pop();
-
-
 
 	game.fps = 1000 / (thisLoop - lastLoop);
 	game.deltaTime = FIXED_DELTATIME / game.fps;

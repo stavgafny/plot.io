@@ -53,6 +53,7 @@ class Ammo extends Item {
 }
 
 class Bullet extends Body {
+
     constructor(position, radius, velocity, range, damage) {
         super(position, radius);
         this.velocity = velocity;
@@ -60,11 +61,19 @@ class Bullet extends Body {
         this.damage = damage;
     }
 
+    get drag() { return 0.025; }
+
     outOfRange() {
         return this.range <= 0;
     }
 
     update(deltaTime=1) {
+
+        
+		let ratio = 1 / (1 + (this.drag * deltaTime)); // Math.pow(this.drag, deltaTime);
+		this.velocity.x *= ratio;
+        this.velocity.y *= ratio;
+        
         this.position.x += this.velocity.x * deltaTime;
         this.position.y += this.velocity.y * deltaTime;
         this.range = Math.max(this.range - deltaTime, 0);
@@ -145,6 +154,8 @@ class Weapon extends Item {
                 side: 0
             };
         }
+
+        get alive() { return this.health > 0; }
 
         getPosition() {
             return {x : this.position.x, y : this.position.y};

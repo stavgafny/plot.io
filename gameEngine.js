@@ -167,13 +167,20 @@ exports.Room = class {
 	}
 
 	damagePlayer(player, damage) {
-		player.setHealth(player.getHealth() - damage);
-		let data = { id: player.id, health: player.getHealth() };
-		if (!this.config.showHealth) {
-			player.socket.emit('hp:d', data);
-			delete data.health;
+		if (!player) {
+			return null;
 		}
-		exports.io.sockets.in(this.get()).emit('hp:d', data);
+		player.setHealth(player.getHealth() - damage);
+		if (player.alive) {
+			let data = { id: player.id, health: player.getHealth() };
+			if (!this.config.showHealth) {
+				player.socket.emit('hp:d', data);
+				delete data.health;
+			}
+			exports.io.sockets.in(this.get()).emit('hp:d', data);
+		} else {
+			player.socket.disconnect();
+		}
 	}
 
 

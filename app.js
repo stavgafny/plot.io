@@ -105,7 +105,7 @@ io.sockets.on('connection', (socket) => {
 		player.hold = false;
 	});
 
-	socket.on('disconnect', () => {
+	socket.on("disconnect", () => {
 		io.sockets.in(room.get()).emit('closed', player.id);
 		room.removePlayer(player);
 		return null;

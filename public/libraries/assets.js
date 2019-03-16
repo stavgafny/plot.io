@@ -10,10 +10,6 @@ class Item {
         this.maxAmount = maxAmount;
     }
 
-    get id() {
-        return Object.keys(exports).indexOf(this.name);
-    }
-
     getName() {
         return this.name;
     }
@@ -54,14 +50,13 @@ class Ammo extends Item {
 
 class Bullet extends Body {
 
-    constructor(position, radius, velocity, range, damage) {
+    constructor(position, radius, velocity, range, damage, drag) {
         super(position, radius);
         this.velocity = velocity;
         this.range = range;
         this.damage = damage;
+        this.drag = drag;
     }
-
-    get drag() { return 0.025; }
 
     outOfRange() {
         return this.range <= 0;
@@ -81,7 +76,7 @@ class Bullet extends Body {
 }
 
 class Weapon extends Item {
-    constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, isAuto, size, bullet) {
+    constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, pulse, isAuto, size, bullet, bulletDrag) {
         super(name, true, 1);
         this.fireRate = fireRate;
         this.maxAmmo = maxAmmo;
@@ -89,10 +84,13 @@ class Weapon extends Item {
         this.damage = damage;
         this.recoil = recoil;
         this.range = range;
+        this.pulse = pulse;
         this.isAuto = isAuto;
         this.size = size;
         this.bullet = bullet;
+        this.bulletDrag = bulletDrag;
         this.ready = true;
+        this.currentPulse = 0;
     }
 
     isReady() {
@@ -100,22 +98,35 @@ class Weapon extends Item {
     }
 
     use(position, angle, radius) {
-        let velocity = {
-            x : Math.cos(angle) * this.velocity,
-            y : Math.sin(angle) * this.velocity
-        };
-        
         this.ready = false;
         setTimeout(() => {
             this.ready = true;
         }, this.fireRate);
         
         let delta = (radius + (this.size.width * radius)) / this.velocity;
+        let pulse = this.recoil * this.currentPulse / this.pulse;
+        pulse *= (Math.random() * 2) - 1;
+        let velocity = {
+            x : Math.cos(angle) * this.velocity,
+            y : Math.sin(angle) * this.velocity
+        };
+
+        this.currentPulse = this.pulse;
 
         position.x += velocity.x * delta;
         position.y += velocity.y * delta;
 
-        return new Bullet(position, this.bullet.radius, velocity, this.range, this.damage);
+        velocity = {
+            x : Math.cos(angle + pulse) * this.velocity,
+            y : Math.sin(angle + pulse) * this.velocity
+        };
+
+        return new Bullet(position, this.bullet.radius, velocity, this.range, this.damage, this.bulletDrag);
+    }
+
+
+    update(deltaTime=1) {
+        this.currentPulse = Math.min(Math.max(this.currentPulse - ((this.pulse / 10)*deltaTime), 0), this.pulse);
     }
 };
 
@@ -200,6 +211,12 @@ class Weapon extends Item {
         update(deltaTime=1) {
             this.position.x += (this.speed * this.axis.x) * deltaTime;
             this.position.y += (this.speed * this.axis.y) * deltaTime;
+            let object = this.inventory[this.slotIndex];
+            if (object) {
+                if (object.isAccessible()) {
+					object.update(deltaTime);
+				}
+            }
         }
 
         punch(side = Math.round(Math.random())) {
@@ -246,7 +263,7 @@ class Weapon extends Item {
 
 
     exports.A556 = class extends Ammo {
-        static get radius() { return 6; }
+        static get radius() { return 3; }
         constructor() {
             super("A556");
         }
@@ -254,7 +271,7 @@ class Weapon extends Item {
     
 
     exports.A762 = class extends Ammo {
-        static get radius() { return 8; }
+        static get radius() { return 3; }
         constructor() {
             super("A762");
         }
@@ -265,25 +282,33 @@ class Weapon extends Item {
             let size = {
 				width : 2.2,
 				height : .4
-			}
-            super("M4", 100, 30, 13.2, 16, 0.6, 60, true, size, exports.A556);
+            };
+            let bulletDrag = 0.015;
+            let pulse = 0.5;
+            let rocil = 0.4;
+            super("M4", 90, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag);
         }
     };
 
-    exports.Semi = class extends Weapon {
+    exports.AK47 = class extends Weapon {
         constructor() {
             let size = {
 				width : 2.4,
 				height : .42
-			}
-            super("Semi", 160, 16, 15.2, 24, 0, 80, false, size, exports.A762);
+            };
+            let bulletDrag = 0.01;
+            let pulse = 0.6;
+            let rocil = 0.15;
+            super("AK47", 100, 16, 20.2, 20, rocil, 130, pulse, true, size, exports.A762, bulletDrag);
         }
+        
     };
     
 
     for(let i = 0; i < Object.keys(exports).length; i++) {
         let object = exports[Object.keys(exports)[i]];
         object.id = i;
-      };
+        object.prototype.id = i;
+    };
 
 })(typeof exports === 'undefined'? this['assets']={}: exports);

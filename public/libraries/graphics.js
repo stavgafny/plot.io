@@ -5,21 +5,28 @@ class GraphicsWeapon {
 		let h = radius*this.size.height;
 		let f1 = radius*1.05;
 		let f2 = radius + (w-radius) * 0.65;
+		let gripSize = w/8;
 
-		let launch = this.launch * (radius * this.pulse);
-		translate(0, 0);
+		let currentPulse = this.currentPulse * (radius * this.pulse);
 		push();
-		fill(this.color);
+		translate((w / 2) - currentPulse, 0);
+		fill(this.color.body);
 		rectMode(CENTER);
 		strokeWeight(1);
-		rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
+		stroke(this.color.body);
+		rect(0, 0, w, h, 0, 10, 10, 0);
+		fill(this.color.grip);
+		rect((w/2) - gripSize*2, 0, gripSize*2, h);
+		stroke(0, 0, 0, 100);
+		noFill();
+		rect(0, 0, w, h, 0, 10, 10, 0);
 		pop();
 		push();
 		ellipse(0, 0, radius*2);
 		strokeWeight(fist.handStroke);
 		fill(color.fist);
-		ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
-		ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
+		ellipse(f1 - currentPulse, fist.gap*.2, fist.radius*2);
+		ellipse(f2 - currentPulse, fist.gap*.3, fist.radius*2);
 		pop();
 	}
 }
@@ -143,18 +150,37 @@ class GraphicsWeapon {
 	};
 
 	graphics.Bullet = class extends Bullet {
-		constructor(position, radius, velocity, range, damage, color) {
-			super(position, radius, velocity, range, damage);
+		constructor(position, radius, velocity, range, damage, drag, color) {
+			super(position, radius, velocity, range, damage, drag);
 			this.color = color;
+			this.trail = 0;
+			this.maxTrail = 10;
 		}
 
 		draw() {
 			let e = fixedCamera(this.position);
 			push();
 			translate(...Object.values(e));
-			fill(this.color);
-			ellipse(0, 0, this.radius*2);
+			noFill();
+			strokeWeight(this.radius*2);
+			let color = Object.assign([], this.color);
+			color[3] = 255;
+			let dec = color[3] / this.trail;
+			strokeCap(SQUARE);
+			for (let i = 0; i <= this.trail; i++) {
+				stroke(color);
+				let x = this.velocity.x*i;
+				let y = this.velocity.y*i;
+				line(-x, -y, this.velocity.x, this.velocity.y);
+				color[3] -= dec;
+			}
 			pop();
+		}
+		update() {
+			super.update();
+			if (this.trail < this.maxTrail) {
+				this.trail++;
+			}
 		}
 	};
 
@@ -162,14 +188,14 @@ class GraphicsWeapon {
 	// ~All game ammo~
 	
 	graphics.A556 = class extends assets.A556 {
-		static get color() { return [100, 255, 100]; }
+		static get color() { return [40, 255, 150]; }
 		constructor() {
 			super();
 		}
 	};
 
 	graphics.A762 = class extends assets.A762 {
-		static get color() { return [100, 100, 255]; }
+		static get color() { return [0, 255, 255]; }
 		constructor() {
 			super();
 		}
@@ -180,41 +206,33 @@ class GraphicsWeapon {
 	graphics.M4 = class extends assets.M4 {
 		constructor() {
 	        super();
-			this.pulse = 0.5;
-			this.launch = 0;
-			this.color = [255, 0, 0];
-			this.graphics = GraphicsWeapon.assultDraw;
-		}
-
-		draw(radius, fist, color) {
-			this.graphics(radius, fist, color);
-			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
-		}
-		
-		use(position, angle, radius) {
-			//super.use(position, angle, radius);
-			this.launch = this.pulse;
-		}
-	};
-
-
-	graphics.Semi = class extends assets.Semi {
-		constructor() {
-	        super();
-			this.pulse = 0.6;
-			this.launch = 0;
-			this.color = [0, 0, 255];
-			this.graphics = GraphicsWeapon.assultDraw;
-		}
-
-		draw(radius, fist, color) {
-			this.graphics(radius, fist, color);
-			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
+			this.color = {
+				body : [0, 0, 0],
+				grip : [60, 60, 60]
+			};
+			this.draw = GraphicsWeapon.assultDraw;
 		}
 		
 		use() {
 			//super.use(position, angle, radius);
-			this.launch = this.pulse;
+			this.currentPulse = this.pulse;
+		}
+	};
+
+
+	graphics.AK47 = class extends assets.AK47 {
+		constructor() {
+	        super();
+			this.color = {
+				body : [130, 130, 100],
+				grip : [220, 120, 0, 100]
+			};
+			this.draw = GraphicsWeapon.assultDraw;
+		}
+
+		use() {
+			//super.use(position, angle, radius);
+			this.currentPulse = this.pulse;
 		}
 	};
 

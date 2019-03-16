@@ -145,7 +145,7 @@ function setup() {
 
 		socket.on("bullet", (bullet) => {
 			let ammo = getElementById(bullet.id);
-			let b = new graphics.Bullet(bullet.position, ammo.radius, bullet.velocity, bullet.range, bullet.damage, ammo.color);
+			let b = new graphics.Bullet(bullet.position, ammo.radius, bullet.velocity, bullet.range, bullet.damage, bullet.drag, ammo.color);
 			b.id = bullet.id;
 			bullets.push(b);
 		});
@@ -213,8 +213,8 @@ function draw() {
 				}
 			}
 			if (!hit) {
-				bullets[i].update(game.deltaTime);
 				bullets[i].draw();
+				bullets[i].update(game.deltaTime);
 			}
 		};
 	}

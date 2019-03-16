@@ -81,7 +81,8 @@ exports.Room = class {
 			position : bullet.position,
 			velocity : bullet.velocity,
 			range : bullet.range,
-			damage : bullet.damage
+			damage : bullet.damage,
+			drag : bullet.drag
 		};
 	}
 

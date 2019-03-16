@@ -71,17 +71,18 @@ io.sockets.on('connection', (socket) => {
 
 
 	const player = room.createPlayer(socket);
-	const playerData = room.strip(player);
+	const playerData = room.stripPlayer(player);
 	io.sockets.in(room.get()).emit('new', playerData);
 	Object.assign(playerData, { health: player.health });
 	socket.emit("join", redirect ? Object.assign({ name: room.get() }, playerData) : playerData);
 	room.players.forEach((p) => {
-		socket.emit("new", room.strip(p));
+		socket.emit("new", room.stripPlayer(p));
+	});
+	room.bullets.forEach((b) => {
+		socket.emit("bullet", room.stripBullet(b));
 	});
 
-	socket.join(room.get());
 	room.addPlayer(player);
-
 
 	socket.on("a", (angle) => {
 		player.setAngle(angle);

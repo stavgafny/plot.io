@@ -1,6 +1,6 @@
 
 class GraphicsWeapon {
-	static assultDraw(radius, fist) {
+	static assultDraw(radius, fist, color) {
 		let w = radius + radius*this.size.width;
 		let h = radius*this.size.height;
 		let f1 = radius*1.05;
@@ -10,13 +10,14 @@ class GraphicsWeapon {
 		translate(0, 0);
 		push();
 		fill(this.color);
-		strokeWeight(1);
 		rectMode(CENTER);
+		strokeWeight(1);
 		rect((w / 2) - launch, 0, w, h, 0, 10, 10, 0);
 		pop();
 		push();
 		ellipse(0, 0, radius*2);
 		strokeWeight(fist.handStroke);
+		fill(color.fist);
 		ellipse(f1 - launch, fist.gap*.2, fist.radius*2);
 		ellipse(f2 - launch, fist.gap*.3, fist.radius*2);
 		pop();
@@ -46,7 +47,7 @@ class GraphicsWeapon {
 
 			this.damaged = {
 				on : false,
-				delay : 300,
+				delay : 200,
 				color : [255, 0, 0],
 				interval: null
 
@@ -69,7 +70,7 @@ class GraphicsWeapon {
 			if (this.inventory[this.slotIndex] instanceof Item) {
 				let object = this.inventory[this.slotIndex];
 				if (object.isAccessible()) {
-					object.draw(this.radius, this.fist);
+					object.draw(this.radius, this.fist, this.color);
 				}
 			} else {
 				strokeWeight(this.fist.handStroke);
@@ -185,8 +186,8 @@ class GraphicsWeapon {
 			this.graphics = GraphicsWeapon.assultDraw;
 		}
 
-		draw(radius, fist) {
-			this.graphics(radius, fist);
+		draw(radius, fist, color) {
+			this.graphics(radius, fist, color);
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		
@@ -206,8 +207,8 @@ class GraphicsWeapon {
 			this.graphics = GraphicsWeapon.assultDraw;
 		}
 
-		draw(radius, fist) {
-			this.graphics(radius, fist);
+		draw(radius, fist, color) {
+			this.graphics(radius, fist, color);
 			this.launch = Math.min(Math.max(this.launch - ((this.pulse / 10)*game.deltaTime), 0), this.pulse);
 		}
 		

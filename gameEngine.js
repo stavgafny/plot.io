@@ -56,7 +56,7 @@ exports.Room = class {
 		return `${this.type}:${this.name}`;
 	}
 
-	strip(player) {
+	stripPlayer(player) {
 		let p = {
 			position: player.position,
 			radius: player.radius,
@@ -72,6 +72,17 @@ exports.Room = class {
 			p.health = player.health;
 		}
 		return p;
+	}
+
+
+	stripBullet(bullet) {
+		return {
+			id : bullet.id,
+			position : bullet.position,
+			velocity : bullet.velocity,
+			range : bullet.range,
+			damage : bullet.damage
+		};
 	}
 
 
@@ -95,6 +106,7 @@ exports.Room = class {
 	addPlayer(player) {
 		this.players.push(player);
 		this.counter++;
+		player.socket.join(this.get());
 	}
 
 	isRunning() {
@@ -107,19 +119,21 @@ exports.Room = class {
 			let thisLoop = Date.now();
 			for (let i = 0; i < this.players.length; i++) {
 				let player = this.players[i];
-				player.update(this.deltaTime);
-				//exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
-
-				if (player.getCurrentSlot() && player.hold) {
-					this.playerAction(player);
-				} else if (player.fist.hitBox) {
-					let hitBox = player.getHitBox();
-
-					for (let p = 0; p < this.players.length && player.fist.hitBox; p++) {
-						if (this.players[p] !== player) {
-							if (hitBox.collide(this.players[p])) {
-								setTimeout(() => this.damagePlayer(this.players[p], this.config.playerFistDamage), 0);
-								player.fist.hitBox = false;
+				if (player) {
+					player.update(this.deltaTime);
+					//exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
+	
+					if (player.getCurrentSlot() && player.hold) {
+						this.playerAction(player);
+					} else if (player.fist.hitBox) {
+						let hitBox = player.getHitBox();
+	
+						for (let p = 0; p < this.players.length && player.fist.hitBox; p++) {
+							if (this.players[p] !== player) {
+								if (hitBox.collide(this.players[p])) {
+									setTimeout(() => this.damagePlayer(this.players[p], this.config.playerFistDamage), 0);
+									player.fist.hitBox = false;
+								}
 							}
 						}
 					}
@@ -197,15 +211,10 @@ exports.Room = class {
 				if (object.isReady()) {
 					let bullet = object.use(player.getPosition(), player.angle, player.radius);
 					if (bullet) {
+						bullet.id = object.bullet.id;
 						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
 						this.bullets.push(bullet);
-						exports.io.sockets.in(this.get()).emit("bullet", {
-							id : object.bullet.id,
-							position : bullet.position,
-							velocity : bullet.velocity,
-							range : bullet.range,
-							damage : bullet.damage
-						});
+						exports.io.sockets.in(this.get()).emit("bullet", this.stripBullet(bullet));
 						if (!object.isAuto) {
 							player.hold = false;
 						}

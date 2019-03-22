@@ -1,3 +1,41 @@
+(function(audio) {
+	
+	audio.fistwave = new Howl({
+		src : ["audio/fistwave.mp3"]
+	});
+
+	audio.m4 = {
+		fire : new Howl({
+			src : ["audio/m4.mp3"]
+		})
+	};
+
+	audio.ak47 = {
+		fire : new Howl({
+			src : ["audio/ak47.mp3"]
+		})
+	};
+
+
+	audio.stereo = function(position, audio, range) {
+
+		let pan = map(position.x - player.getPosition().x, -range, range, -1.0, 1.0);
+		if (pan < -1 || pan > 1) {
+			pan = pan > 1 ? 1 : -1;
+		}
+		let d = dist(position.x, position.y, player.getPosition().x, player.getPosition().y);
+		d = Math.max(map(d, 0, range*2, 1.0, 0.0), 0);
+		let id = audio.play();
+		audio.stereo(pan, id);
+		audio.volume(d, id);
+	}
+
+
+})(typeof audio === 'undefined'? this['audio']={}: audio);
+
+
+
+
 
 class GraphicsWeapon {
 	static assultDraw(radius, fist, color) {
@@ -60,6 +98,8 @@ class GraphicsWeapon {
 
 			}
 
+			this.audioRange = 500;
+			
 			Object.assign(this.fist, graphics.Player.fistProperties(this.radius));
 		};
 
@@ -120,6 +160,9 @@ class GraphicsWeapon {
 			setTimeout(() => {
 				this.fist.launch = 0;
 			}, this.fist.delay);
+
+			audio.stereo(this.getPosition(), audio.fistwave, this.audioRange);
+			
 			return super.punch(side);
 		}
 
@@ -154,13 +197,13 @@ class GraphicsWeapon {
 			super(position, radius, velocity, range, damage, drag);
 			this.color = color;
 			this.trail = 0;
-			this.maxTrail = 10;
+			this.maxTrail = Math.floor((Math.abs(this.velocity.x) + Math.abs(this.velocity.y)) / 2.2);
 		}
 
 		draw() {
 			let e = fixedCamera(this.position);
 			push();
-			translate(...Object.values(e));
+			translate(e.x, e.y);
 			noFill();
 			strokeWeight(this.radius*2);
 			let color = Object.assign([], this.color);
@@ -211,11 +254,13 @@ class GraphicsWeapon {
 				grip : [60, 60, 60]
 			};
 			this.draw = GraphicsWeapon.assultDraw;
+			this.audioRange = 1000;
 		}
 		
-		use() {
+		use(position, angle, radius) {
 			//super.use(position, angle, radius);
 			this.currentPulse = this.pulse;
+			audio.stereo(position, audio.m4.fire, this.audioRange);
 		}
 	};
 
@@ -225,14 +270,16 @@ class GraphicsWeapon {
 	        super();
 			this.color = {
 				body : [130, 130, 100],
-				grip : [220, 120, 0, 100]
+				grip : [220, 120, 0]
 			};
 			this.draw = GraphicsWeapon.assultDraw;
+			this.audioRange = 1000;
 		}
 
-		use() {
+		use(position, angle, radius) {
 			//super.use(position, angle, radius);
 			this.currentPulse = this.pulse;
+			audio.stereo(position, audio.ak47.fire, this.audioRange);
 		}
 	};
 

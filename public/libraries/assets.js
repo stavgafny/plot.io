@@ -103,19 +103,19 @@ class Weapon extends Item {
             this.ready = true;
         }, this.fireRate);
         
-        let delta = (radius + (this.size.width * radius)) / this.velocity;
-        let pulse = this.recoil * this.currentPulse / this.pulse;
-        pulse *= (Math.random() * 2) - 1;
         let velocity = {
             x : Math.cos(angle) * this.velocity,
             y : Math.sin(angle) * this.velocity
         };
 
-        this.currentPulse = this.pulse;
-
+        let delta = (radius + (this.size.width * radius)) / this.velocity;
         position.x += velocity.x * delta;
         position.y += velocity.y * delta;
 
+        let pulse = this.recoil * this.currentPulse / this.pulse;
+        pulse *= (Math.random() * 2) - 1;
+        this.currentPulse = this.pulse;
+        
         velocity = {
             x : Math.cos(angle + pulse) * this.velocity,
             y : Math.sin(angle + pulse) * this.velocity
@@ -286,7 +286,7 @@ class Weapon extends Item {
             let bulletDrag = 0.015;
             let pulse = 0.5;
             let rocil = 0.4;
-            super("M4", 90, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag);
+            super("M4", 70, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag);
         }
     };
 
@@ -298,7 +298,7 @@ class Weapon extends Item {
             };
             let bulletDrag = 0.01;
             let pulse = 0.6;
-            let rocil = 0.15;
+            let rocil = 0.18;
             super("AK47", 100, 16, 20.2, 20, rocil, 130, pulse, true, size, exports.A762, bulletDrag);
         }
         

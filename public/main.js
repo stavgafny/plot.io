@@ -12,6 +12,9 @@ const game = {
 	deltaTime: 0
 };
 
+//audio.theme.play();
+
+
 const KEYS = {
 	left: 65,
 	right: 68,
@@ -21,6 +24,7 @@ const KEYS = {
 const FIXED_DELTATIME = 60;
 const GROUND_COLOR = [128, 175, 73];
 let GRID_GAP = 320;
+
 
 
 function getPlayerById(id) {
@@ -54,6 +58,7 @@ function stringifyInventory(idInventory = []) {
 
 function setup() {
 	frameRate(144);
+	//pixelDensity(1.2);
 	socket = io.connect(`${window.location.hostname}`);
 	createCanvas(window.innerWidth, window.innerHeight);
 
@@ -128,12 +133,9 @@ function setup() {
 			let object = p.getCurrentSlot();
 			if (object) {
 				if (object.isAccessible()) {
-					/*
 					if (object.isReady()) {
-						object.use(player.getPosition(), player.angle);
+						object.use(p.getPosition(), p.angle, p.radius);
 					}
-					*/
-					object.use(player.getPosition(), player.angle, player.radius);
 				}
 			}
 		});
@@ -268,6 +270,9 @@ function mouseReleased(event) {
 
 
 function keyPressed(event) {
+	if (event.keyCode === 9) {
+		event.preventDefault(); // If tab is pressed
+	}
 	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
 		socket.emit("changeSlot", event.keyCode - 49);
 	} else if (event.keyCode === 88) {

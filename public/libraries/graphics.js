@@ -1,18 +1,18 @@
 (function(audio) {
 	
 	audio.fistwave = new Howl({
-		src : ["audio/fistwave.mp3"]
+		src : ["audio/fistwave.wav"]
 	});
 
 	audio.m4 = {
 		fire : new Howl({
-			src : ["audio/m4.mp3"]
+			src : ["audio/m4.wav"]
 		})
 	};
 
 	audio.ak47 = {
 		fire : new Howl({
-			src : ["audio/ak47.mp3"]
+			src : ["audio/ak47.wav"]
 		})
 	};
 
@@ -193,36 +193,49 @@ class GraphicsWeapon {
 	};
 
 	graphics.Bullet = class extends Bullet {
+
+		static get maxColor() { return 255; }
+		static get minColor() { return 50; }
+
 		constructor(position, radius, velocity, range, damage, drag, color) {
 			super(position, radius, velocity, range, damage, drag);
 			this.color = color;
-			this.trail = 0;
-			this.maxTrail = Math.floor((Math.abs(this.velocity.x) + Math.abs(this.velocity.y)) / 2.2);
+			this.ray = 0;
+			this.maxRay = Math.floor((Math.abs(this.velocity.x) + Math.abs(this.velocity.y)) / 3.2);
+			this.fixedRange = range;
 		}
 
 		draw() {
 			let e = fixedCamera(this.position);
-			push();
-			translate(e.x, e.y);
-			noFill();
-			strokeWeight(this.radius*2);
-			let color = Object.assign([], this.color);
-			color[3] = 255;
-			let dec = color[3] / this.trail;
-			strokeCap(SQUARE);
-			for (let i = 0; i <= this.trail; i++) {
-				stroke(color);
-				let x = this.velocity.x*i;
-				let y = this.velocity.y*i;
-				line(-x, -y, this.velocity.x, this.velocity.y);
-				color[3] -= dec;
+			let et = {
+				x : e.x + this.velocity.x*-this.ray,
+				y : e.y + this.velocity.y*-this.ray
+			};
+			if (inRange(e) || inRange(et)) {
+				push();
+				translate(e.x, e.y);
+				noFill();
+				strokeWeight(this.radius*2);
+				strokeCap(SQUARE);
+				let c = Object.assign([, , , 0], this.color);
+				let step = 1;
+				let colorStep = map(this.range, 0, this.fixedRange, graphics.Bullet.minColor, graphics.Bullet.maxColor) / this.ray * step;
+				for (let i = -this.ray; i <= 1; i+=step) {
+					stroke(c);
+					line(this.velocity.x*i, this.velocity.y*i, this.velocity.x*(i+step), this.velocity.y*(i+step));
+					c[3] += colorStep;
+				}
+				strokeCap(ARROW);
+				line(0, 0, this.velocity.x, this.velocity.y);
+				pop();
 			}
-			pop();
 		}
+
+
 		update() {
 			super.update();
-			if (this.trail < this.maxTrail) {
-				this.trail++;
+			if (this.ray < this.maxRay) {
+				this.ray++;
 			}
 		}
 	};

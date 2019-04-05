@@ -56,11 +56,23 @@ function stringifyInventory(idInventory = []) {
 }
 
 
+function stringifyPlayer(data) {
+	let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
+	p.id = data.id;
+	p.angle = data.angle;
+	p.setAxis(data.axis);
+	p.changeSlot(data.index);
+
+	return p;
+}
+
+
+
 function setup() {
 	frameRate(144);
 	//pixelDensity(1.2);
 	socket = io.connect(`${window.location.hostname}`);
-	createCanvas(window.innerWidth, window.innerHeight);
+	createCanvas(window.innerWidth, window.innerHeight, P2D);
 
 	socket.on("join", (data) => {
 
@@ -68,19 +80,11 @@ function setup() {
 			history.pushState(null, '', `/?game=${data.name}`);
 		}
 
-		player = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
-		player.id = data.id;
-		player.angle = data.angle;
-		players.length = 0;
-		player.changeSlot(data.index);
+		player = stringifyPlayer(data);
 
 
 		socket.on("new", (data) => {
-			let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
-			p.id = data.id;
-			p.angle = data.angle;
-			p.changeSlot(data.index);
-			players.push(p);
+			players.push(stringifyPlayer(data));
 		});
 
 		socket.on("a", (data) => {

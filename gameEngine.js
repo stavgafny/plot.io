@@ -62,6 +62,7 @@ exports.Room = class {
 			radius: player.radius,
 			health: 0,
 			angle : player.angle,
+			axis : player.getAxis(),
 			speed: player.speed,
 			color: player.color,
 			inventory: exports.Room.stringifyInventory(player),
@@ -228,6 +229,7 @@ exports.Room = class {
 
 		if (player.fist.ready) {
 			exports.io.sockets.in(this.get()).emit("punch", { id: player.id, side: player.punch() });
+			player.hold = false;
 		}
 	}
 }

@@ -69,7 +69,10 @@ io.sockets.on('connection', (socket) => {
 		redirect = true;
 	}
 
-
+	if (!room) {
+		console.log('Server is full');
+		return null;
+	}
 	const player = room.createPlayer(socket);
 	const playerData = room.stripPlayer(player);
 	io.sockets.in(room.get()).emit('new', playerData);

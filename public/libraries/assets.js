@@ -63,7 +63,6 @@ class Bullet extends Body {
     }
 
     update(deltaTime=1) {
-
         
 		let ratio = 1 / (1 + (this.drag * deltaTime)); // Math.pow(this.drag, deltaTime);
 		this.velocity.x *= ratio;
@@ -158,7 +157,7 @@ class Weapon extends Item {
             this.fist = {
                 ready: true,
                 range: this.radius * 1.2,
-                delay: 400,
+                delay: 300,
                 dist: this.radius * .65,
                 radius: this.radius * .28,
                 hitBox: false,
@@ -281,7 +280,7 @@ class Weapon extends Item {
         constructor() {
             let size = {
 				width : 2.2,
-				height : .4
+				height : .35
             };
             let bulletDrag = 0.015;
             let pulse = 0.5;
@@ -294,12 +293,12 @@ class Weapon extends Item {
         constructor() {
             let size = {
 				width : 2.4,
-				height : .42
+				height : .38
             };
             let bulletDrag = 0.01;
             let pulse = 0.6;
             let rocil = 0.18;
-            super("AK47", 100, 16, 20.2, 20, rocil, 130, pulse, true, size, exports.A762, bulletDrag);
+            super("AK47", 100, 16, 22.2, 20, rocil, 120, pulse, true, size, exports.A762, bulletDrag);
         }
         
     };

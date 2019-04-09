@@ -2,7 +2,9 @@
 
 class Item {
 
-    static get stack() { return 64; }
+    static get STACK() { return 64; }
+
+    static valid(object) { return object instanceof Item; }
 
     constructor(name, accessible, maxAmount = 1) {
         this.name = name;
@@ -31,6 +33,62 @@ class Item {
     }
 }
 
+
+class Storage {
+    constructor(maxStorage) {
+        this.maxStorage = maxStorage;
+        this.storage = [];
+    }
+
+    insert(item) {
+        if (Item.valid(item) && this.storage.length < this.maxStorage) {
+            this.storage.push(item);
+        }
+    }
+
+    getStorage() {
+        return Object.assign([], this.storage);
+    }
+};
+
+
+class Inventory extends Storage {
+
+    static get FORMAT() { return {storage : [], bar : []}; }
+
+    constructor(maxStorage, maxBar) {
+        super(maxStorage);
+        this.maxBar = maxBar;
+        this.bar = [];
+        this.barIndex = -1;
+    }
+
+    get currentSlot() { return this.bar[this.barIndex]; }
+
+    getStorage() {
+        return {storage : super.getStorage(), bar : Object.assign([], this.bar)};
+    }
+
+    insertBar(item) {
+        if (Item.valid(item) && this.bar.length < this.maxBar) {
+            this.bar.push(item);
+        }
+    }
+
+    changeSlot(index=-1) {
+        if (!(typeof(index) === 'number')) {
+            return null;
+        }
+        if (this.barIndex !== index) {
+            this.barIndex = index;
+        }
+        return this.currentSlot;
+    }
+
+}
+
+
+
 class Body {
     // ~rigid body~
     constructor(position, radius) {
@@ -44,7 +102,7 @@ class Body {
 
 class Ammo extends Item {
     constructor(name) {
-        super(name, false, Item.stack);
+        super(name, false, Item.STACK);
     }
 }
 
@@ -120,7 +178,7 @@ class Weapon extends Item {
             y : Math.sin(angle + pulse) * this.velocity
         };
 
-        return new Bullet(position, this.bullet.radius, velocity, this.range, this.damage, this.bulletDrag);
+        return new Bullet(position, this.bullet.RADIUS, velocity, this.range, this.damage, this.bulletDrag);
     }
 
 
@@ -139,15 +197,28 @@ class Weapon extends Item {
 
     exports.Player = class extends Body {
 
-        static get numberOfSlots() { return 2; }
+        static get DEFAULT_INVENTORY() { return new Inventory(4, 2); }
 
-        constructor(position, radius, health, speed, color, inventory = []) {
+        constructor(position, radius, health, speed, color, inventory = {}) {
             super(position, radius);
             this.health = health;
             this.speed = speed;
             this.setColor(color);
-            this.inventory = inventory;
-            this.slotIndex = -1;
+
+            //if (has backpack)
+            //else
+            inventory = Object.assign(Inventory.FORMAT, inventory);
+
+            this.inventory = exports.Player.DEFAULT_INVENTORY;
+            inventory.storage.forEach((item) => {
+                this.inventory.insert(item);
+            });
+            inventory.bar.forEach((item) => {
+                this.inventory.insertBar(item);
+            });
+
+            this.currentSlot = null;
+
             this.axis = {
                 x: 0,
                 y: 0
@@ -157,7 +228,7 @@ class Weapon extends Item {
             this.fist = {
                 ready: true,
                 range: this.radius * 1.2,
-                delay: 300,
+                delay: 350,
                 dist: this.radius * .65,
                 radius: this.radius * .28,
                 hitBox: false,
@@ -210,10 +281,9 @@ class Weapon extends Item {
         update(deltaTime=1) {
             this.position.x += (this.speed * this.axis.x) * deltaTime;
             this.position.y += (this.speed * this.axis.y) * deltaTime;
-            let object = this.inventory[this.slotIndex];
-            if (object) {
-                if (object.isAccessible()) {
-					object.update(deltaTime);
+            if (this.currentSlot) {
+                if (this.currentSlot.isAccessible()) {
+					this.currentSlot.update(deltaTime);
 				}
             }
         }
@@ -242,27 +312,15 @@ class Weapon extends Item {
             }, this.fist.radius);
         }
 
-        getSlotIndex() {
-            return this.slotIndex;
+        changeSlot(slot) {
+            this.currentSlot = this.inventory.changeSlot(slot);
         }
 
-        changeSlot(index) {
-            let object = this.getCurrentSlot();
-            if (this.slotIndex !== index) {
-                this.slotIndex = index;
-                return object;
-            }
-            return null;
-        }
-
-        getCurrentSlot() {
-            return this.inventory[this.slotIndex];
-        }
     };
 
 
     exports.A556 = class extends Ammo {
-        static get radius() { return 3; }
+        static get RADIUS() { return 3; }
         constructor() {
             super("A556");
         }
@@ -270,7 +328,7 @@ class Weapon extends Item {
     
 
     exports.A762 = class extends Ammo {
-        static get radius() { return 3; }
+        static get RADIUS() { return 3; }
         constructor() {
             super("A762");
         }

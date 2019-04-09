@@ -114,10 +114,9 @@ class GraphicsWeapon {
 			strokeWeight(this.stroke);
 
 			ellipse(0, 0, this.radius*2);
-			if (this.inventory[this.slotIndex] instanceof Item) {
-				let object = this.inventory[this.slotIndex];
-				if (object.isAccessible()) {
-					object.draw(this.radius, this.fist, this.color);
+			if (this.currentSlot) {
+				if (this.currentSlot.isAccessible()) {
+					this.currentSlot.draw(this.radius, this.fist, this.color);
 				}
 			} else {
 				strokeWeight(this.fist.handStroke);
@@ -181,21 +180,22 @@ class GraphicsWeapon {
 			this.damaged.interval = setTimeout(() => { this.damaged.on = false; }, this.damaged.delay);
 		}
 
+
 		changeSlot(index) {
-			let object = super.changeSlot(index);
-			if (object) {
-				if (object.launch) {
-					object.launch = 0;
+			if (this.currentSlot) {
+				if (this.currentSlot.currentPulse) {
+					this.currentSlot.currentPulse = 0;
 				}
 			}
+			super.changeSlot(index);
 		}
 
 	};
 
 	graphics.Bullet = class extends Bullet {
 
-		static get maxColor() { return 255; }
-		static get minColor() { return 50; }
+		static get MAX_COLOR() { return 255; }
+		static get MIN_COLOR() { return 50; }
 
 		constructor(position, radius, velocity, range, damage, drag, color) {
 			super(position, radius, velocity, range, damage, drag);
@@ -218,24 +218,28 @@ class GraphicsWeapon {
 				strokeWeight(this.radius*2);
 				strokeCap(SQUARE);
 				let c = Object.assign([, , , 0], this.color);
-				let step = 1;
-				let colorStep = map(this.range, 0, this.fixedRange, graphics.Bullet.minColor, graphics.Bullet.maxColor) / this.ray * step;
-				for (let i = -this.ray; i <= 1; i+=step) {
+				let value = Math.abs(this.velocity.x) + Math.abs(this.velocity.y);
+				let step = this.ray / value
+				let colorStep = map(this.range, 0, this.fixedRange, graphics.Bullet.MIN_COLOR, graphics.Bullet.MAX_COLOR) / this.ray * step;
+				
+				for (let i = -this.ray; i < -step*2; i+=step) {
 					stroke(c);
 					line(this.velocity.x*i, this.velocity.y*i, this.velocity.x*(i+step), this.velocity.y*(i+step));
 					c[3] += colorStep;
 				}
-				strokeCap(ARROW);
-				line(0, 0, this.velocity.x, this.velocity.y);
+				stroke(c);
+				line(-this.velocity.x, -this.velocity.y, -this.velocity.x*.5, -this.velocity.y*.5);
+				strokeCap(ROUND);
+				line(-this.velocity.x*.5, -this.velocity.y*.5, 0, 0);
 				pop();
 			}
 		}
 
 
-		update() {
-			super.update();
+		update(deltaTime) {
+			super.update(deltaTime);
 			if (this.ray < this.maxRay) {
-				this.ray++;
+				this.ray = Math.min(this.ray + deltaTime, this.maxRay);
 			}
 		}
 	};
@@ -244,14 +248,14 @@ class GraphicsWeapon {
 	// ~All game ammo~
 	
 	graphics.A556 = class extends assets.A556 {
-		static get color() { return [40, 255, 150]; }
+		static get COLOR() { return [40, 255, 150]; }
 		constructor() {
 			super();
 		}
 	};
 
 	graphics.A762 = class extends assets.A762 {
-		static get color() { return [0, 255, 255]; }
+		static get COLOR() { return [0, 255, 255]; }
 		constructor() {
 			super();
 		}

@@ -15,7 +15,7 @@ const DEFAULT_ROOM = {
 		startHealth: 100.0,
 		radius: 30,
 		speed: 3.6,
-		startInventory : [],
+		startInventory : {storage : [], bar : []},
 		maxPlayers: 10,
 		defaultPlayerColor: config.defaultPlayerColor,
 		playerFistDamage: 20,
@@ -30,12 +30,14 @@ const DEFAULT_ROOM = {
 
 exports.Room = class {
 
-	static stringifyInventory(player) {
-		let items = [];
-		player.inventory.forEach((item) => {
-			items.push(item.id);
-		});
-		return items;
+	static stringifyInventory(inventory) {
+		inventory = inventory.getStorage();
+		inventory = {
+			storage : inventory.storage.map((item) => item.id, inventory.storage),
+			bar : inventory.bar.map((item) => item.id, inventory.bar)
+		}
+
+		return inventory;
 	}
 
 
@@ -43,6 +45,7 @@ exports.Room = class {
 		this.name = name;
 		this.type = type;
 		this.config = Object.assign({}, DEFAULT_ROOM.config, config);
+		this.config.startInventory = Object.assign({}, DEFAULT_ROOM.config.startInventory, config.startInventory);
 		this.map = Object.assign({}, DEFAULT_ROOM.map, map);
 		this.players = [];
 		this.bullets = [];
@@ -65,8 +68,8 @@ exports.Room = class {
 			axis : player.getAxis(),
 			speed: player.speed,
 			color: player.color,
-			inventory: exports.Room.stringifyInventory(player),
-			index: player.slotIndex,
+			inventory : exports.Room.stringifyInventory(player.inventory),
+			index: player.inventory.barIndex,
 			id: player.id
 		};
 		if (this.config.showHealth) {
@@ -89,15 +92,20 @@ exports.Room = class {
 
 
 	createPlayer(socket = null) {
+		let inventory = this.config.startInventory;
+		inventory = {
+			storage : inventory.storage.map((object) => new object()),
+			bar : inventory.bar.map((object) => new object())
+		}
+
 		let player = new exports.assets.Player(
 			{ x: 2000, y: 2000 },
 			this.config.radius,
 			this.config.startHealth,
 			this.config.speed,
 			this.config.defaultPlayerColor,
-			this.config.startInventory.map((object) => new object())
+			inventory
 		);
-
 
 		player.id = this.counter;
 		player.socket = socket;
@@ -125,7 +133,7 @@ exports.Room = class {
 					player.update(this.deltaTime);
 					//exports.io.sockets.in(this.get()).emit('pos', {id : player.id, position : player.position});
 	
-					if (player.getCurrentSlot() && player.hold) {
+					if (player.currentSlot && player.hold) {
 						this.playerAction(player);
 					} else if (player.fist.hitBox) {
 						let hitBox = player.getHitBox();
@@ -202,19 +210,19 @@ exports.Room = class {
 
 	changePlayerSlot(player, slot) {
 		player.changeSlot(slot);
-		exports.io.sockets.in(this.get()).emit("changeSlot", { slot: player.slotIndex, id: player.id });
+		exports.io.sockets.in(this.get()).emit("changeSlot", { slot : player.inventory.barIndex, id : player.id });
 
 	}
 
 	playerAction(player) {
-		let object = player.getCurrentSlot();
+		let object = player.currentSlot;
 		if (object) {
 			if (object.isAccessible()) {
 				if (object.isReady()) {
 					let bullet = object.use(player.getPosition(), player.angle, player.radius);
 					if (bullet) {
 						bullet.id = object.bullet.id;
-						exports.io.sockets.in(this.get()).emit("action", { id: player.id, index : player.getSlotIndex() });
+						exports.io.sockets.in(this.get()).emit("action", { id : player.id, index : player.inventory.barIndex });
 						this.bullets.push(bullet);
 						exports.io.sockets.in(this.get()).emit("bullet", this.stripBullet(bullet));
 						if (!object.isAuto) {

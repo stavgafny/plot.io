@@ -14,12 +14,13 @@ const game = {
 
 //audio.theme.play();
 
-
+const ASCII_NUMBER = 48
 const KEYS = {
 	left: 65,
 	right: 68,
 	up: 87,
-	down: 83
+	down: 83,
+	x : 88
 }
 const FIXED_DELTATIME = 60;
 const GROUND_COLOR = [128, 175, 73];
@@ -44,14 +45,22 @@ function getElementById(id) {
 }
 
 
-function stringifyInventory(idInventory = []) {
-	let inventory = [];
-	idInventory.forEach((id) => {
+function idListToObjects(idList) {
+	let objectList = [];
+	idList.forEach((id) => {
 		let object = getElementById(id);
 		if (object) {
-			inventory.push(new object());
+			objectList.push(new object());
 		}
 	});
+	return objectList;
+}
+
+
+function stringifyInventory(inventory = {}) {
+	inventory = Object.assign(Inventory.FORMAT, inventory);
+	inventory.storage = idListToObjects(inventory.storage);
+	inventory.bar = idListToObjects(inventory.bar);
 	return inventory;
 }
 
@@ -120,7 +129,7 @@ function setup() {
 
 		socket.on("punch", (data) => {
 			let p = getPlayerById(data.id);
-			if (p.getCurrentSlot()) {
+			if (p.currentSlot) {
 				p.changeSlot(-1);
 			}
 			
@@ -131,10 +140,10 @@ function setup() {
 
 		socket.on("action", (data) => {
 			let p = getPlayerById(data.id);
-			if (p.getSlotIndex() !== data.index) {
+			if (data.index !== player.inventory.barIndex) {	
 				p.changeSlot(data.index);
 			}
-			let object = p.getCurrentSlot();
+			let object = p.currentSlot;
 			if (object) {
 				if (object.isAccessible()) {
 					if (object.isReady()) {
@@ -151,7 +160,7 @@ function setup() {
 
 		socket.on("bullet", (bullet) => {
 			let ammo = getElementById(bullet.id);
-			let b = new graphics.Bullet(bullet.position, ammo.radius, bullet.velocity, bullet.range, bullet.damage, bullet.drag, ammo.color);
+			let b = new graphics.Bullet(bullet.position, ammo.RADIUS, bullet.velocity, bullet.range, bullet.damage, bullet.drag, ammo.COLOR);
 			b.id = bullet.id;
 			bullets.push(b);
 		});
@@ -219,8 +228,8 @@ function draw() {
 				}
 			}
 			if (!hit) {
-				bullets[i].draw();
 				bullets[i].update(game.deltaTime);
+				bullets[i].draw();
 			}
 		};
 	}
@@ -277,9 +286,9 @@ function keyPressed(event) {
 	if (event.keyCode === 9) {
 		event.preventDefault(); // If tab is pressed
 	}
-	if (event.keyCode > 48 && event.keyCode <= 48 + assets.Player.numberOfSlots) {
-		socket.emit("changeSlot", event.keyCode - 49);
-	} else if (event.keyCode === 88) {
+	if (event.keyCode > ASCII_NUMBER && event.keyCode <= ASCII_NUMBER + player.inventory.maxBar) {
+		socket.emit("changeSlot", event.keyCode - ASCII_NUMBER - 1);
+	} else if (event.keyCode === KEYS.x) {
 		socket.emit("changeSlot", -1);
 	}
 }

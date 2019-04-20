@@ -1,6 +1,10 @@
 'use strict';
-document.addEventListener('contextmenu', event => event.preventDefault());
 
+document.addEventListener('contextmenu', event => event.preventDefault());
+window.addEventListener("focus", event => {
+	// get all data again.
+	// prevent spam
+});
 
 let socket;
 let player;
@@ -12,8 +16,6 @@ const game = {
 	deltaTime: 0
 };
 
-//audio.theme.play();
-
 const ASCII_NUMBER = 48
 const KEYS = {
 	left: 65,
@@ -24,7 +26,7 @@ const KEYS = {
 }
 const FIXED_DELTATIME = 60;
 const GROUND_COLOR = [128, 175, 73];
-let GRID_GAP = 320;
+const GRID_GAP = 320;
 
 
 
@@ -79,11 +81,11 @@ function stringifyPlayer(data) {
 
 function setup() {
 	frameRate(144);
-	//pixelDensity(1.2);
 	socket = io.connect(`${window.location.hostname}`);
 	createCanvas(window.innerWidth, window.innerHeight, P2D);
+	graphics.context = canvas.getContext("2d");
 
-	socket.on("join", (data) => {
+	socket.on("join", data => {
 
 		if (data.name !== undefined) {
 			history.pushState(null, '', `/?game=${data.name}`);
@@ -92,25 +94,25 @@ function setup() {
 		player = stringifyPlayer(data);
 
 
-		socket.on("new", (data) => {
+		socket.on("new", data => {
 			players.push(stringifyPlayer(data));
 		});
 
-		socket.on("a", (data) => {
+		socket.on("a", data => {
 			let p = getPlayerById(data.id);
 			if (p) {
 				p.setAngle(data.angle);
 			}
 		});
 
-		socket.on("pos", (data) => {
+		socket.on("pos", data => {
 			let p = getPlayerById(data.id);
 			if (p) {
 				p.setPosition(data.position);
 			}
 		});
 
-		socket.on("hp:d", (data) => {
+		socket.on("hp:d", data => {
 			let p = getPlayerById(data.id);
 			if (p) {
 				if (data.hasOwnProperty("health")) {
@@ -120,14 +122,14 @@ function setup() {
 			}
 		});
 
-		socket.on("axis", (data) => {
+		socket.on("axis", data => {
 			let p = getPlayerById(data.id);
 			if (p) {
 				p.setAxis(data.axis);
 			}
 		});
 
-		socket.on("punch", (data) => {
+		socket.on("punch", data => {
 			let p = getPlayerById(data.id);
 			if (p.currentSlot) {
 				p.changeSlot(-1);
@@ -138,14 +140,14 @@ function setup() {
 			}
 		});
 
-		socket.on("action", (data) => {
+		socket.on("action", data => {
 			let p = getPlayerById(data.id);
 			if (data.index !== player.inventory.barIndex) {	
 				p.changeSlot(data.index);
 			}
 			let object = p.currentSlot;
 			if (object) {
-				if (object.isAccessible()) {
+				if (object.accessible) {
 					if (object.isReady()) {
 						object.use(p.getPosition(), p.angle, p.radius);
 					}
@@ -153,31 +155,31 @@ function setup() {
 			}
 		});
 
-		socket.on("changeSlot", (data) => {
+		socket.on("changeSlot", data => {
 			let p = getPlayerById(data.id);
 			p.changeSlot(data.slot);
 		});
 
-		socket.on("bullet", (bullet) => {
+		socket.on("bullet", bullet => {
 			let ammo = getElementById(bullet.id);
 			let b = new graphics.Bullet(bullet.position, ammo.RADIUS, bullet.velocity, bullet.range, bullet.damage, bullet.drag, ammo.COLOR);
 			b.id = bullet.id;
 			bullets.push(b);
 		});
 
-		socket.on("closed", (id) => {
+		socket.on("closed", id => {
 			let p = getPlayerById(id);
 			let i = players.indexOf(p);
 			players.splice(i, 1);
 		});
 
 		socket.on("disconnect", () => {
-			player = null; //!player;
+			player = null;
 		});
 	});
 }
 
-let lastLoop = new Date();
+let lastLoop = Date.now();
 function draw() {
 	if (!player) {
 		background(25, 25, 25);
@@ -188,7 +190,7 @@ function draw() {
 		text("You are dead...", 0, 0);
 		return null;
 	}
-	let thisLoop = new Date();
+	let thisLoop = Date.now();
 	drawBackground();
 
 
@@ -214,6 +216,10 @@ function draw() {
 		socket.emit("axis", axis);
 	}
 	
+	player.update(game.deltaTime);
+	CAMERA.x = player.position.x;
+	CAMERA.y = player.position.y;
+
 	for (let i = 0; i < bullets.length; i++) {
 		if (bullets[i].outOfRange()) {
 			bullets.splice(i, 1);
@@ -234,9 +240,7 @@ function draw() {
 		};
 	}
 
-	player.update(game.deltaTime);
-	CAMERA.x = player.position.x;
-	CAMERA.y = player.position.y;
+
 	players.forEach((p) => {
 		p.update(game.deltaTime);
 		p.draw(true);
@@ -258,6 +262,12 @@ function draw() {
 	textAlign(LEFT);
 	text(`Fps : ${floor(game.fps)}`, 0, 0);
 	pop();
+
+	if (player.currentSlot) {
+		textAlign(CENTER);
+		text(player.currentSlot.currentMag, width / 2, height - 100);
+	}
+
 
 	game.fps = 1000 / (thisLoop - lastLoop);
 	game.deltaTime = FIXED_DELTATIME / game.fps;

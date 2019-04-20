@@ -12,25 +12,7 @@ class Item {
         this.maxAmount = maxAmount;
     }
 
-    getName() {
-        return this.name;
-    }
-
-    getWeight() {
-        return this.weight;
-    }
-
-    isAccessible() {
-        return this.accessible;
-    }
-
-    setAmount(value) {
-        this.amount = value;
-    }
-
-    getMaxAmout() {
-        return this.maxAmount;
-    }
+    get type() { return this.constructor.name; }
 }
 
 
@@ -122,7 +104,7 @@ class Bullet extends Body {
 
     update(deltaTime=1) {
         
-		let ratio = 1 / (1 + (this.drag * deltaTime)); // Math.pow(this.drag, deltaTime);
+		let ratio = 1 / (1 + (this.drag * deltaTime));
 		this.velocity.x *= ratio;
         this.velocity.y *= ratio;
         
@@ -146,6 +128,8 @@ class Weapon extends Item {
         this.size = size;
         this.bullet = bullet;
         this.bulletDrag = bulletDrag;
+
+        this.currentMag = 30;
         this.ready = true;
         this.currentPulse = 0;
     }
@@ -178,6 +162,7 @@ class Weapon extends Item {
             y : Math.sin(angle + pulse) * this.velocity
         };
 
+        this.currentMag--;
         return new Bullet(position, this.bullet.RADIUS, velocity, this.range, this.damage, this.bulletDrag);
     }
 
@@ -282,7 +267,7 @@ class Weapon extends Item {
             this.position.x += (this.speed * this.axis.x) * deltaTime;
             this.position.y += (this.speed * this.axis.y) * deltaTime;
             if (this.currentSlot) {
-                if (this.currentSlot.isAccessible()) {
+                if (this.currentSlot.accessible) {
 					this.currentSlot.update(deltaTime);
 				}
             }
@@ -320,7 +305,7 @@ class Weapon extends Item {
 
 
     exports.A556 = class extends Ammo {
-        static get RADIUS() { return 3; }
+        static get RADIUS() { return 5; }
         constructor() {
             super("A556");
         }
@@ -328,7 +313,7 @@ class Weapon extends Item {
     
 
     exports.A762 = class extends Ammo {
-        static get RADIUS() { return 3; }
+        static get RADIUS() { return 5; }
         constructor() {
             super("A762");
         }
@@ -361,11 +346,11 @@ class Weapon extends Item {
         
     };
     
-
+    
     for(let i = 0; i < Object.keys(exports).length; i++) {
         let object = exports[Object.keys(exports)[i]];
         object.id = i;
         object.prototype.id = i;
     };
 
-})(typeof exports === 'undefined'? this['assets']={}: exports);
+})(typeof exports === 'undefined' ? this['assets'] = {} : exports);

@@ -72,6 +72,12 @@ class GraphicsWeapon {
 
 (function(graphics) {
 
+		graphics.context = null;
+
+		graphics.rgba = color => {
+			return 'rgba(' + color + ')';
+		}
+
 		// ~All game grahpical object~
 		
 		graphics.Player = class extends assets.Player {
@@ -115,7 +121,7 @@ class GraphicsWeapon {
 
 			ellipse(0, 0, this.radius*2);
 			if (this.currentSlot) {
-				if (this.currentSlot.isAccessible()) {
+				if (this.currentSlot.accessible) {
 					this.currentSlot.draw(this.radius, this.fist, this.color);
 				}
 			} else {
@@ -194,16 +200,24 @@ class GraphicsWeapon {
 
 	graphics.Bullet = class extends Bullet {
 
-		static get MAX_COLOR() { return 255; }
-		static get MIN_COLOR() { return 50; }
+		static get MAX_COLOR() { return 1; }
+		static get MIN_COLOR() { return 0; }
+
+		static getMaxRay(speed) {
+			return speed / 2;
+		}
 
 		constructor(position, radius, velocity, range, damage, drag, color) {
 			super(position, radius, velocity, range, damage, drag);
 			this.color = color;
 			this.ray = 0;
-			this.maxRay = Math.floor((Math.abs(this.velocity.x) + Math.abs(this.velocity.y)) / 3.2);
 			this.fixedRange = range;
+			this.maxRay = graphics.Bullet.getMaxRay(this.speed);
+			this.angle = Math.atan2(-this.velocity.y, -this.velocity.x);
 		}
+
+		get speed() { return dist(0, 0, this.velocity.x, this.velocity.y); }
+
 
 		draw() {
 			let e = fixedCamera(this.position);
@@ -211,26 +225,19 @@ class GraphicsWeapon {
 				x : e.x + this.velocity.x*-this.ray,
 				y : e.y + this.velocity.y*-this.ray
 			};
-			if (inRange(e) || inRange(et)) {
+			if (true) {//(inRange(e) || inRange(et)) {
+				let length = this.speed * this.ray;
 				push();
 				translate(e.x, e.y);
-				noFill();
-				strokeWeight(this.radius*2);
-				strokeCap(SQUARE);
-				let c = Object.assign([, , , 0], this.color);
-				let value = Math.abs(this.velocity.x) + Math.abs(this.velocity.y);
-				let step = this.ray / value
-				let colorStep = map(this.range, 0, this.fixedRange, graphics.Bullet.MIN_COLOR, graphics.Bullet.MAX_COLOR) / this.ray * step;
-				
-				for (let i = -this.ray; i < -step*2; i+=step) {
-					stroke(c);
-					line(this.velocity.x*i, this.velocity.y*i, this.velocity.x*(i+step), this.velocity.y*(i+step));
-					c[3] += colorStep;
-				}
-				stroke(c);
-				line(-this.velocity.x, -this.velocity.y, -this.velocity.x*.5, -this.velocity.y*.5);
-				strokeCap(ROUND);
-				line(-this.velocity.x*.5, -this.velocity.y*.5, 0, 0);
+
+				let v = map(this.range, 0, this.fixedRange, graphics.Bullet.MIN_COLOR, graphics.Bullet.MAX_COLOR);
+				let grd = graphics.context.createLinearGradient(0, 0, length, 0);
+				grd.addColorStop(0, graphics.rgba(Object.assign([, , , v], this.color)));
+				grd.addColorStop(1, graphics.rgba(Object.assign([, , , 0], this.color)));
+				graphics.context.fillStyle = grd;
+				noStroke();
+				rotate(this.angle);
+				rect(0, -this.radius / 2, length, this.radius, this.radius);
 				pop();
 			}
 		}
@@ -239,7 +246,7 @@ class GraphicsWeapon {
 		update(deltaTime) {
 			super.update(deltaTime);
 			if (this.ray < this.maxRay) {
-				this.ray = Math.min(this.ray + deltaTime, this.maxRay);
+				this.ray = Math.min(this.ray + (1 * deltaTime), this.maxRay);
 			}
 		}
 	};

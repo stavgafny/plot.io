@@ -2,7 +2,7 @@
 
 class Item {
 
-    static get STACK() { return 64; }
+    static get DEFAULT_STACK() { return 6; }
 
     static valid(object) { return object instanceof Item; }
 
@@ -10,9 +10,12 @@ class Item {
         this.name = name;
         this.accessible = accessible;
         this.maxAmount = maxAmount;
+        this.amount = null;
     }
 
     get type() { return this.constructor.name; }
+
+    get value() { return this.amount; }
 }
 
 
@@ -83,8 +86,9 @@ class Body {
 }
 
 class Ammo extends Item {
-    constructor(name) {
-        super(name, false, Item.STACK);
+    constructor(name, maxAmount, amount) {
+        super(name, false, maxAmount);
+        this.amount = amount;
     }
 }
 
@@ -115,7 +119,7 @@ class Bullet extends Body {
 }
 
 class Weapon extends Item {
-    constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, pulse, isAuto, size, bullet, bulletDrag) {
+    constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, pulse, isAuto, size, bullet, bulletDrag, currentAmmo) {
         super(name, true, 1);
         this.fireRate = fireRate;
         this.maxAmmo = maxAmmo;
@@ -128,11 +132,12 @@ class Weapon extends Item {
         this.size = size;
         this.bullet = bullet;
         this.bulletDrag = bulletDrag;
-
-        this.currentMag = 30;
+        this.currentAmmo = currentAmmo < 0 ? this.maxAmmo : currentAmmo;
         this.ready = true;
         this.currentPulse = 0;
     }
+
+    get value() {return this.currentAmmo; }
 
     isReady() {
         return this.ready;
@@ -162,7 +167,7 @@ class Weapon extends Item {
             y : Math.sin(angle + pulse) * this.velocity
         };
 
-        this.currentMag--;
+        this.currentAmmo--;
         return new Bullet(position, this.bullet.RADIUS, velocity, this.range, this.damage, this.bulletDrag);
     }
 
@@ -306,21 +311,13 @@ class Weapon extends Item {
 
     exports.A556 = class extends Ammo {
         static get RADIUS() { return 5; }
-        constructor() {
-            super("A556");
-        }
-    };
-    
-
-    exports.A762 = class extends Ammo {
-        static get RADIUS() { return 5; }
-        constructor() {
-            super("A762");
+        constructor(amount = 1) {
+            super("5.56", Item.DEFAULT_STACK, amount);
         }
     };
 
     exports.M4 = class extends Weapon {
-        constructor() {
+        constructor(currentAmmo = 0) {
             let size = {
 				width : 2.2,
 				height : .35
@@ -328,12 +325,12 @@ class Weapon extends Item {
             let bulletDrag = 0.015;
             let pulse = 0.5;
             let rocil = 0.4;
-            super("M4", 70, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag);
+            super("M4", 70, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag, currentAmmo);
         }
     };
 
     exports.AK47 = class extends Weapon {
-        constructor() {
+        constructor(currentAmmo = 0) {
             let size = {
 				width : 2.4,
 				height : .38
@@ -341,7 +338,7 @@ class Weapon extends Item {
             let bulletDrag = 0.01;
             let pulse = 0.6;
             let rocil = 0.18;
-            super("AK47", 100, 16, 22.2, 20, rocil, 120, pulse, true, size, exports.A762, bulletDrag);
+            super("AK-47", 100, 16, 22.2, 20, rocil, 120, pulse, true, size, exports.A556, bulletDrag, currentAmmo);
         }
         
     };

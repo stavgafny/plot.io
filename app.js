@@ -21,7 +21,7 @@ const rooms = [];
 
 function validRoom(room) {
 	if (room)
-		return room.players.length < room.config.maxPlayers && room.isRunning();
+		return room.players.length < room.config.maxPlayers && room.running;
 	return false;
 }
 
@@ -77,11 +77,14 @@ rooms.push(
 	new gameEngine.Room("1", "FFA", {
 		showHealth : true,
 		startInventory : {
-			bar : [assets.M4, assets.AK47]
+			bar : [
+				[assets.M4, 10],
+				[assets.A556, 22]
+			]
 		}
-	}),
-	new gameEngine.Room("2", "FFA", { showHealth: true }),
-	new gameEngine.Room("3", "FFA", { radius: 50, defaultPlayerColor: { stroke: [255, 255, 0], body: [100, 200, 200] }, startHp: 10, speed: 8 })
+	})//,
+	//new gameEngine.Room("2", "FFA", { showHealth: true }),
+	//new gameEngine.Room("3", "FFA", { radius: 50, defaultPlayerColor: { stroke: [255, 255, 0], body: [100, 200, 200] }, startHp: 10, speed: 8 })
 );
 
 rooms[0].run();

@@ -6,8 +6,7 @@ window.addEventListener("focus", event => {
 	// prevent spam
 });
 
-let socket;
-let player;
+let socket, player, playerUI;
 const players = [];
 const bullets = [];
 const CAMERA = { x: 0, y: 0 };
@@ -47,28 +46,28 @@ function getElementById(id) {
 }
 
 
-function idListToObjects(idList) {
+function templateListToObjects(templateList) {
 	let objectList = [];
-	idList.forEach((id) => {
-		let object = getElementById(id);
+	templateList.forEach((template) => {
+		let object = getElementById(template.id);
 		if (object) {
-			objectList.push(new object());
+			objectList.push(new object(template.value));
 		}
 	});
 	return objectList;
 }
 
 
-function stringifyInventory(inventory = {}) {
+function objectifyInventory(inventory = {}) {
 	inventory = Object.assign(Inventory.FORMAT, inventory);
-	inventory.storage = idListToObjects(inventory.storage);
-	inventory.bar = idListToObjects(inventory.bar);
+	inventory.storage = templateListToObjects(inventory.storage);
+	inventory.bar = templateListToObjects(inventory.bar);
 	return inventory;
 }
 
 
-function stringifyPlayer(data) {
-	let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, stringifyInventory(data.inventory));
+function objectifyPlayer(data) {
+	let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, objectifyInventory(data.inventory));
 	p.id = data.id;
 	p.angle = data.angle;
 	p.setAxis(data.axis);
@@ -77,6 +76,29 @@ function stringifyPlayer(data) {
 	return p;
 }
 
+function handlePlayerAxis() {
+	let axis = player.getAxis();
+	if (keyIsDown(KEYS.left)) {
+		axis.x = -1;
+	} else {
+		axis.x = 0;
+		if (keyIsDown(KEYS.right)) {
+			axis.x = 1;
+		}
+	}
+	if (keyIsDown(KEYS.up)) {
+		axis.y = -1;
+	} else {
+		axis.y = 0;
+		if (keyIsDown(KEYS.down)) {
+			axis.y = 1;
+		}
+	}
+
+	if (JSON.stringify(axis) !== JSON.stringify(player.getAxis())) {
+		socket.emit("axis", axis);
+	}
+}
 
 
 function setup() {
@@ -84,18 +106,19 @@ function setup() {
 	socket = io.connect(`${window.location.hostname}`);
 	createCanvas(window.innerWidth, window.innerHeight, P2D);
 	graphics.context = canvas.getContext("2d");
+	cursor(CROSS);
 
 	socket.on("join", data => {
 
-		if (data.name !== undefined) {
-			history.pushState(null, '', `/?game=${data.name}`);
+		if (data.room !== undefined) {
+			history.pushState(null, '', `/?game=${data.room}`);
 		}
 
-		player = stringifyPlayer(data);
-
+		player = objectifyPlayer(data);
+		playerUI = new PlayerUI(player);
 
 		socket.on("new", data => {
-			players.push(stringifyPlayer(data));
+			players.push(objectifyPlayer(data));
 		});
 
 		socket.on("a", data => {
@@ -142,7 +165,7 @@ function setup() {
 
 		socket.on("action", data => {
 			let p = getPlayerById(data.id);
-			if (data.index !== player.inventory.barIndex) {	
+			if (data.index !== p.inventory.barIndex) {	
 				p.changeSlot(data.index);
 			}
 			let object = p.currentSlot;
@@ -182,39 +205,11 @@ function setup() {
 let lastLoop = Date.now();
 function draw() {
 	if (!player) {
-		background(25, 25, 25);
-		translate(width / 2, height / 2);
-		textAlign(CENTER);
-		textSize(width / 50);
-		fill(255, 255, 255);
-		text("You are dead...", 0, 0);
 		return null;
 	}
 	let thisLoop = Date.now();
 	drawBackground();
-
-
-	let axis = player.getAxis();
-	if (keyIsDown(KEYS.left)) {
-		axis.x = -1;
-	} else {
-		axis.x = 0;
-		if (keyIsDown(KEYS.right)) {
-			axis.x = 1;
-		}
-	}
-	if (keyIsDown(KEYS.up)) {
-		axis.y = -1;
-	} else {
-		axis.y = 0;
-		if (keyIsDown(KEYS.down)) {
-			axis.y = 1;
-		}
-	}
-
-	if (JSON.stringify(axis) !== JSON.stringify(player.getAxis())) {
-		socket.emit("axis", axis);
-	}
+	handlePlayerAxis();
 	
 	player.update(game.deltaTime);
 	CAMERA.x = player.position.x;
@@ -263,10 +258,8 @@ function draw() {
 	text(`Fps : ${floor(game.fps)}`, 0, 0);
 	pop();
 
-	if (player.currentSlot) {
-		textAlign(CENTER);
-		text(player.currentSlot.currentMag, width / 2, height - 100);
-	}
+	
+	playerUI.draw();
 
 
 	game.fps = 1000 / (thisLoop - lastLoop);
@@ -295,6 +288,7 @@ function mouseReleased(event) {
 function keyPressed(event) {
 	if (event.keyCode === 9) {
 		event.preventDefault(); // If tab is pressed
+		playerUI.toggle();
 	}
 	if (event.keyCode > ASCII_NUMBER && event.keyCode <= ASCII_NUMBER + player.inventory.maxBar) {
 		socket.emit("changeSlot", event.keyCode - ASCII_NUMBER - 1);

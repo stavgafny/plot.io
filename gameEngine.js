@@ -3,42 +3,24 @@ exports.assets = require('./public/libraries/assets.js');
 exports.io = null;
 
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
-const FIXED_DELTATIME = 60;
-const TICK = 30;
-const DEFAULT_ROOM = {
-	config: {
-		startHealth: 100.0,
-		radius: 30,
-		speed: 3.6,
-		startInventory : exports.assets.Player.DEFAULT_INVENTORY.constructor.FORMAT,
-		maxPlayers: 10,
-		defaultPlayerColor: config.defaultPlayerColor,
-		playerFistDamage: 20,
-		showHealth: false
-	},
-	map: {
-		size: 1000
-	},
 
+
+const stringifyInventory = inventory => {
+	let stringifiedInventory = {};
+	inventory = inventory.getStorage();
+	for (let storageUnit in inventory) {
+		stringifiedInventory[storageUnit] = [];
+		inventory[storageUnit].forEach(item => {
+			stringifiedInventory[storageUnit].push(
+				{
+					id : item.id,
+					value : item.value
+				}
+			);
+		});
+	}
+	return stringifiedInventory;
 };
-
-
-
-const stripPlayer = player => {
-	return {
-		position: player.position,
-		radius: player.radius,
-		health: 0,
-		angle : player.angle,
-		axis : player.getAxis(),
-		speed: player.speed,
-		color: player.color,
-		inventory : exports.Room.stringifyInventory(player.inventory),
-		index: player.inventory.barIndex,
-		id: player.id
-	};
-}
-
 
 const stripBullet = bullet => {
 	return {
@@ -51,32 +33,54 @@ const stripBullet = bullet => {
 	};
 };
 
+const stripPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealth) => {
+	let p = {
+		position: player.position,
+		radius: player.radius,
+		health: 0,
+		angle : player.angle,
+		axis : player.getAxis(),
+		speed: player.speed,
+		color: player.color,
+		inventory : stringifyInventory(player.inventory),
+		index: player.inventory.barIndex,
+		id: player.id
+	};
+	
+	if (showHealth) {
+		p.health = player.health;
+	}
+	return p;
+};
 
-exports.Room = class {
 
-	static stringifyInventory(inventory) {
-		inventory = inventory.getStorage();
-		inventory = {
-			storage : inventory.storage.map(item => item.id, inventory.storage),
-			bar : inventory.bar.map(item => item.id, inventory.bar)
-		}
+class Core {
 
-		return inventory;
+	static get DEFAULT_ROOM() {
+		return {
+			config: {
+				startHealth: 100.0,
+				radius: 30,
+				speed: 3.6,
+				startInventory : exports.assets.Player.DEFAULT_INVENTORY.constructor.FORMAT,
+				maxPlayers: 10,
+				defaultPlayerColor: config.defaultPlayerColor,
+				playerFistDamage: 20,
+				showHealth: false
+			},
+			map: {
+				size: 1000
+			},
+		
+		};
 	}
 
-	constructor(name, type, config = {}, map = {}) {
+	constructor(name, type, config, map)  {
 		this.name = name;
 		this.type = type;
-		this.config = Object.assign({}, DEFAULT_ROOM.config, config);
-		this.config.startInventory = Object.assign({}, DEFAULT_ROOM.config.startInventory, config.startInventory);
-		this.map = Object.assign({}, DEFAULT_ROOM.map, map);
-		this.players = [];
-		this.bullets = [];
-		this.queue = [];
-
-		this.worker = null;
-		this.deltaTime = 0;
-		this.counter = 0;
+		this.config = Object.assign({}, Core.DEFAULT_ROOM.config, config);
+		this.config.startInventory = Object.assign({}, Core.DEFAULT_ROOM.config.startInventory, config.startInventory);
+		this.map = Object.assign({}, Core.DEFAULT_ROOM.map, map);
 	}
 
 	get stringify() { return `${this.type}:${this.name}`; }
@@ -84,20 +88,43 @@ exports.Room = class {
 	get broadcast() { return exports.io.sockets.in(this.stringify); }
 
 	get newPlayerInventory() {
-		let inventory = this.config.startInventory;
-		return {
-			storage : inventory.storage.map(object => new object()),
-			bar : inventory.bar.map(object => new object())
-		};
+		let inventory = Core.DEFAULT_ROOM.config.startInventory;
+		try {
+			for (let storageUnit in this.config.startInventory) {
+				this.config.startInventory[storageUnit].forEach(template => {
+					let item = new template[0](
+						...template.slice(1, template.length)
+					);
+					inventory[storageUnit].push(item);
+				});
+			}
+		}
+		finally {
+			return inventory;
+		}
+	}
+}
+
+
+
+
+
+exports.Room = class extends Core {
+
+	static get FIXED_DELTATIME() { return 60; }
+
+	static get TICK() { return 30; }
+
+	constructor(name, type, config = {}, map = {}) {
+		super(name, type, config, map);
+		this.players = [];
+		this.bullets = [];
+		this.worker = null;
+		this.deltaTime = 1;
+		this.counter = 0;
 	}
 
-	stripPlayer(player) {
-		let p = stripPlayer(player);
-		if (this.config.showHealth) {
-			p.health = player.health;
-		}
-		return p;
-	}
+	get running() { return this.worker !== null; }
 
 	handlePlayerRequests(player) {
 		let socket = player.socket;
@@ -134,9 +161,6 @@ exports.Room = class {
 		});
 	}
 
-
-
-
 	addPlayer(socket = null) {
 		let position = {x : 2000, y : 2000};
 		let player = new exports.assets.Player(
@@ -152,19 +176,19 @@ exports.Room = class {
 		player.socket = socket;
 		player.hold = false;
 
-		let data = this.stripPlayer(player);
+		let data = stripPlayer(player, this.config.showHealth);
 
 		this.broadcast.emit("new", data);
 
 		Object.assign(data, {
-			name : this.stringify,
+			room : this.stringify,
 			health : player.health
 		});
 
 		socket.emit("join", data);
 		
 		this.players.forEach(p => {
-			socket.emit("new", this.stripPlayer(p));
+			socket.emit("new", stripPlayer(p, this.config.showHealth));
 		});
 		this.bullets.forEach(b => {
 			socket.emit("bullet", stripBullet(b));
@@ -174,10 +198,6 @@ exports.Room = class {
 		socket.join(this.stringify);
 
 		this.handlePlayerRequests(player);
-	}
-
-	isRunning() {
-		return this.worker !== null;
 	}
 
 	run() {
@@ -223,10 +243,9 @@ exports.Room = class {
 				}
 			}
 
-			this.deltaTime = FIXED_DELTATIME / (1000 / (thisLoop - lastLoop));
+			this.deltaTime = exports.Room.FIXED_DELTATIME / (1000 / (thisLoop - lastLoop));
 			lastLoop = thisLoop;
-			
-		}, 1000 / TICK);
+		}, 1000 / exports.Room.TICK);
 	}
 	stop() {
 		clearInterval(this.worker);
@@ -272,7 +291,7 @@ exports.Room = class {
 		let object = player.currentSlot;
 		if (object) {
 			if (object.accessible) {
-				if (object.isReady()) {
+				if (object.isReady() && object.value > 0) {
 					let bullet = object.use(player.getPosition(), player.angle, player.radius);
 					if (bullet) {
 						bullet.id = object.bullet.id;

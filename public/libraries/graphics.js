@@ -1,86 +1,68 @@
-(function(audio) {
+const SOUND_EFFECTS = {};
+const ICONS = {};
+
+function preload() {
+	Object.assign(SOUND_EFFECTS, {
+		'Player' : new Howl({
+			src : ['audio/player.wav'],
+			sprite : {
+				'fist' : [0, 97.8]
+			}
+		}),
 	
-	audio.fistwave = new Howl({
-		src : ["audio/fistwave.wav"]
+		'M4' : new Howl({
+			src : ['audio/m4.wav'],
+			sprite : {
+				'fire' : [0, 362.8]
+			}
+		}),
+		
+		'AK-47' : new Howl({
+			src : ['audio/ak47.wav'],
+			sprite : {
+				'fire' : [0, 575]
+			}
+		})
 	});
 
-	audio.m4 = {
-		fire : new Howl({
-			src : ["audio/m4.wav"]
-		})
-	};
+	Object.assign(ICONS, {
+		'AK-47' : loadImage('assets/ak47.png'),
+		'M4' : loadImage('assets/m4.png'),
+		'9mm' : loadImage('assets/9mm.png'),
+		'5.56' : loadImage('assets/5.56.png')
+	});
+}
 
-	audio.ak47 = {
-		fire : new Howl({
-			src : ["audio/ak47.wav"]
-		})
-	};
+(function(audio) {
 
-
-	audio.stereo = function(position, audio, range) {
-
+	audio.stereo = function(position, audioObject, audioSprite, range) {
+		if (!audioObject) {
+			return null;
+		}
 		let pan = map(position.x - player.getPosition().x, -range, range, -1.0, 1.0);
 		if (pan < -1 || pan > 1) {
 			pan = pan > 1 ? 1 : -1;
 		}
 		let d = dist(position.x, position.y, player.getPosition().x, player.getPosition().y);
 		d = Math.max(map(d, 0, range*2, 1.0, 0.0), 0);
-		let id = audio.play();
-		audio.stereo(pan, id);
-		audio.volume(d, id);
+		let id = audioObject.play(audioSprite);
+		audioObject.stereo(pan, id);
+		audioObject.volume(d, id);
 	}
-
-
 })(typeof audio === 'undefined'? this['audio']={}: audio);
 
 
 
-
-
-class GraphicsWeapon {
-	static assultDraw(radius, fist, color) {
-		let w = radius + radius*this.size.width;
-		let h = radius*this.size.height;
-		let f1 = radius*1.05;
-		let f2 = radius + (w-radius) * 0.65;
-		let gripSize = w/8;
-
-		let currentPulse = this.currentPulse * (radius * this.pulse);
-		push();
-		translate((w / 2) - currentPulse, 0);
-		fill(this.color.body);
-		rectMode(CENTER);
-		strokeWeight(1);
-		stroke(this.color.body);
-		rect(0, 0, w, h, 0, 10, 10, 0);
-		fill(this.color.grip);
-		rect((w/2) - gripSize*2, 0, gripSize*2, h);
-		stroke(0, 0, 0, 100);
-		noFill();
-		rect(0, 0, w, h, 0, 10, 10, 0);
-		pop();
-		push();
-		ellipse(0, 0, radius*2);
-		strokeWeight(fist.handStroke);
-		fill(color.fist);
-		ellipse(f1 - currentPulse, fist.gap*.2, fist.radius*2);
-		ellipse(f2 - currentPulse, fist.gap*.3, fist.radius*2);
-		pop();
-	}
-}
-
-
 (function(graphics) {
 
-		graphics.context = null;
+	graphics.context = null;
+	graphics.rgba = color => {
+		return 'rgba(' + color + ')';
+	}
 
-		graphics.rgba = color => {
-			return 'rgba(' + color + ')';
-		}
-
-		// ~All game grahpical object~
-		
-		graphics.Player = class extends assets.Player {
+	// ~All game grahpical object~
+	
+	graphics.Player = class extends assets.Player {
 
 		static fistProperties(radius) {
 			return {
@@ -120,10 +102,9 @@ class GraphicsWeapon {
 			strokeWeight(this.stroke);
 
 			ellipse(0, 0, this.radius*2);
-			if (this.currentSlot) {
-				if (this.currentSlot.accessible) {
-					this.currentSlot.draw(this.radius, this.fist, this.color);
-				}
+			if (this.currentSlot && this.currentSlot.accessible) {
+				this.currentSlot.draw(this.radius, this.fist, this.color);
+				
 			} else {
 				strokeWeight(this.fist.handStroke);
 				fill(this.color.fist);
@@ -152,6 +133,11 @@ class GraphicsWeapon {
 				rect(-this.radius, -this.radius-20, health.value, 6, 10);
 				pop();
 			}
+
+			push();
+			imageMode(CENTER);
+			//image(ICONS['5.56'], mouseX, mouseY, 64, 64);
+			pop();
 		}
 
 
@@ -166,7 +152,7 @@ class GraphicsWeapon {
 				this.fist.launch = 0;
 			}, this.fist.delay);
 
-			audio.stereo(this.getPosition(), audio.fistwave, this.audioRange);
+			audio.stereo(this.getPosition(), SOUND_EFFECTS['Player'], 'fist', this.audioRange);
 			
 			return super.punch(side);
 		}
@@ -197,6 +183,47 @@ class GraphicsWeapon {
 		}
 
 	};
+
+
+	graphics.Weapon = class {
+		static assultDraw(radius, fist, color) {
+			let w = radius + radius*this.size.width;
+			let h = radius*this.size.height;
+			let f1 = radius*1.05;
+			let f2 = radius + (w-radius) * 0.65;
+			let gripSize = w/8;
+	
+			let currentPulse = this.currentPulse * (radius * this.pulse);
+			push();
+			translate((w / 2) - currentPulse, 0);
+			fill(this.color.body);
+			rectMode(CENTER);
+			strokeWeight(1);
+			stroke(this.color.body);
+			rect(0, 0, w, h, 0, 10, 10, 0);
+			fill(this.color.grip);
+			rect((w/2) - gripSize*2, 0, gripSize*2, h);
+			stroke(0, 0, 0, 100);
+			noFill();
+			rect(0, 0, w, h, 0, 10, 10, 0);
+			pop();
+			push();
+			ellipse(0, 0, radius*2);
+			strokeWeight(fist.handStroke);
+			fill(color.fist);
+			ellipse(f1 - currentPulse, fist.gap*.2, fist.radius*2);
+			ellipse(f2 - currentPulse, fist.gap*.3, fist.radius*2);
+			pop();
+		}
+	
+		static assultUse(position, angle, radius) {
+			this.currentPulse = this.pulse;
+			audio.stereo(position, SOUND_EFFECTS[this.name], "fire", this.audioRange);
+			this.currentAmmo--;
+			
+		}
+	}
+
 
 	graphics.Bullet = class extends Bullet {
 
@@ -256,54 +283,38 @@ class GraphicsWeapon {
 	
 	graphics.A556 = class extends assets.A556 {
 		static get COLOR() { return [40, 255, 150]; }
-		constructor() {
-			super();
-		}
-	};
-
-	graphics.A762 = class extends assets.A762 {
-		static get COLOR() { return [0, 255, 255]; }
-		constructor() {
-			super();
+		//AK [0, 255, 255];
+		constructor(amount) {
+			super(amount);
 		}
 	};
 
 	// ~All game weapons~
 
 	graphics.M4 = class extends assets.M4 {
-		constructor() {
-	        super();
+		constructor(currentAmmo) {
+	        super(currentAmmo);
 			this.color = {
 				body : [0, 0, 0],
 				grip : [60, 60, 60]
 			};
-			this.draw = GraphicsWeapon.assultDraw;
+			this.draw = graphics.Weapon.assultDraw;
+			this.use = graphics.Weapon.assultUse;
 			this.audioRange = 1000;
-		}
-		
-		use(position, angle, radius) {
-			//super.use(position, angle, radius);
-			this.currentPulse = this.pulse;
-			audio.stereo(position, audio.m4.fire, this.audioRange);
 		}
 	};
 
 
 	graphics.AK47 = class extends assets.AK47 {
-		constructor() {
-	        super();
+		constructor(currentAmmo) {
+	        super(currentAmmo);
 			this.color = {
 				body : [130, 130, 100],
 				grip : [220, 120, 0]
 			};
-			this.draw = GraphicsWeapon.assultDraw;
+			this.draw = graphics.Weapon.assultDraw;
+			this.use = graphics.Weapon.assultUse;
 			this.audioRange = 1000;
-		}
-
-		use(position, angle, radius) {
-			//super.use(position, angle, radius);
-			this.currentPulse = this.pulse;
-			audio.stereo(position, audio.ak47.fire, this.audioRange);
 		}
 	};
 

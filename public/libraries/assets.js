@@ -22,43 +22,49 @@ class Item {
 class Storage {
     constructor(maxStorage) {
         this.maxStorage = maxStorage;
-        this.storage = [];
+        this.value = [];
+    }
+
+    get length() { return this.maxStorage; }
+
+    get storage() { return Object.assign([], this.value); }
+
+    setValue(inventory) {
+        this.value = inventory;
     }
 
     insert(item) {
-        if (Item.valid(item) && this.storage.length < this.maxStorage) {
-            this.storage.push(item);
+        if (!Item.valid(item)) {
+            return null;
         }
+        for (let i = 0; i < this.length; i++) {
+            if (!this.value[i]) {
+                this.value[i] = item;
+                return i;
+            }
+        }
+        return -1;
     }
 
-    getStorage() {
-        return Object.assign([], this.storage);
+    switch(index1, index2) {
+        let item = this.value[index1];
+        this.value[index1] = this.value[index2];
+        this.value[index2] = item;
     }
 };
 
 
 class Inventory extends Storage {
 
-    static get FORMAT() { return {storage : [], bar : []}; }
-
     constructor(maxStorage, maxBar) {
         super(maxStorage);
         this.maxBar = maxBar;
-        this.bar = [];
         this.barIndex = -1;
     }
 
-    get currentSlot() { return this.bar[this.barIndex]; }
-
-    getStorage() {
-        return {storage : super.getStorage(), bar : Object.assign([], this.bar)};
-    }
-
-    insertBar(item) {
-        if (Item.valid(item) && this.bar.length < this.maxBar) {
-            this.bar.push(item);
-        }
-    }
+    get currentSlot() { return this.value[this.barIndex]; }
+    
+    get length() { return super.length + this.maxBar; }
 
     changeSlot(index=-1) {
         if (!(typeof(index) === 'number')) {
@@ -67,7 +73,6 @@ class Inventory extends Storage {
         if (this.barIndex !== index) {
             this.barIndex = index;
         }
-        return this.currentSlot;
     }
 
 }
@@ -189,7 +194,7 @@ class Weapon extends Item {
 
         static get DEFAULT_INVENTORY() { return new Inventory(4, 2); }
 
-        constructor(position, radius, health, speed, color, inventory = {}) {
+        constructor(position, radius, health, speed, color, inventory = []) {
             super(position, radius);
             this.health = health;
             this.speed = speed;
@@ -197,17 +202,9 @@ class Weapon extends Item {
 
             //if (has backpack)
             //else
-            inventory = Object.assign(Inventory.FORMAT, inventory);
 
             this.inventory = exports.Player.DEFAULT_INVENTORY;
-            inventory.storage.forEach((item) => {
-                this.inventory.insert(item);
-            });
-            inventory.bar.forEach((item) => {
-                this.inventory.insertBar(item);
-            });
-
-            this.currentSlot = null;
+            this.inventory.value = inventory;
 
             this.axis = {
                 x: 0,
@@ -227,6 +224,8 @@ class Weapon extends Item {
         }
 
         get alive() { return this.health > 0; }
+
+        get currentSlot() { return this.inventory.currentSlot; }
 
         getPosition() {
             return {x : this.position.x, y : this.position.y};
@@ -303,11 +302,17 @@ class Weapon extends Item {
         }
 
         changeSlot(slot) {
-            this.currentSlot = this.inventory.changeSlot(slot);
+            this.inventory.changeSlot(slot);
         }
 
     };
 
+    exports.A9MM = class extends Ammo {
+        static get RADIUS() { return 4; }
+        constructor(amount = 1) {
+            super("9mm", Item.DEFAULT_STACK, amount);
+        }
+    };
 
     exports.A556 = class extends Ammo {
         static get RADIUS() { return 5; }

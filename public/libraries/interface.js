@@ -3,22 +3,28 @@ class PlayerUI {
 	static get PROPERTIES() {
 		return {
 			border : {
-				size : 5,
-				color : [160, 169, 220, 180]
+				size : 10,
+				color : [160, 160, 160, 180]
 			},
 
 			block : {
 				size : 70,
-				color : [100, 100, 100, 200],
-				stroke : [255, 255, 255, 100],
+				color : [80, 80, 80, 100],
+				stroke : [0, 0, 0, 80],
 				strokeWeight : 1,
-				highlightColor : [255, 0, 0, 100],
-				heightlightStroke : [255, 255, 255],
-				heightlightStrokeWeight : 4
-
+				highlight : {
+					color : [255, 0, 0, 60],
+					stroke : [255, 255, 255, 150],
+					strokeWeight : 2
+				},
+				select : {
+					color : [255, 255, 255, 100],
+					stroke : [255, 255, 255],
+					strokeWeight : 2
+				}
 			},
-			spacing : 4,
-			radius : 12
+			spacing : 5,
+			radius : 6
 		};
 	}
 
@@ -29,13 +35,22 @@ class PlayerUI {
 		this.spacing = PlayerUI.PROPERTIES.spacing;
 		this.radius = PlayerUI.PROPERTIES.radius;
 		this.focus = false;
+		this.select = null;
+		this.hold = null;
 	}
 
 	toggle() {
 		this.focus = !this.focus;
 	}
 
-	__drawBorder(x, y, w, h, radius = this.radius) {
+	__mouseOnBlock(x, y) {
+		return mouseX > x - this.block.size / 2 &&
+			mouseX < x + this.block.size / 2 &&
+			mouseY > y - this.block.size / 2 &&
+			mouseY < y + this.block.size / 2;
+	}
+
+	_drawBorder(x, y, w, h, radius = this.radius) {
 		push();
 		rectMode(CENTER);
 		imageMode(CENTER);
@@ -51,12 +66,33 @@ class PlayerUI {
 		pop();
 	}
 
-	_drawBlock(x, y, slot, highlight=false) { //hightlight mode 0-NONE -1 Onselect -2 On mouse
+	_block(x, y, index, highlight=false) { // hightlight mode 0-NONE -1 Onselect -2 On mouse
 		push();
-		if (highlight) {
-			stroke(this.block.heightlightStroke);
-			fill(this.block.highlightColor);
-			strokeWeight(this.block.heightlightStrokeWeight);
+		let slot = this.player.inventory.value[index];
+		let select = false;
+
+		if (this.focus && !this.select && (slot || this.hold)) {
+			let isHoldedSelected = false;
+			if (this.hold) {
+				isHoldedSelected = slot === this.hold.item;
+			}
+			if (!isHoldedSelected) {
+				if (this.__mouseOnBlock(x, y)) {
+					this.select = index;
+					select = true;
+				}
+			}
+		}
+
+		if (select && slot !== this.hold) { // not selcets the holded item and not selecting empty blocks
+			stroke(this.block.select.stroke);
+			fill(this.block.select.color);
+			strokeWeight(this.block.select.strokeWeight);
+		}
+		else if (highlight) {
+			stroke(this.block.highlight.stroke);
+			fill(this.block.highlight.color);
+			strokeWeight(this.block.highlight.strokeWeight);
 		} else {
 			stroke(this.block.stroke);
 			fill(this.block.color);
@@ -65,7 +101,7 @@ class PlayerUI {
 		rect(x, y, this.block.size, this.block.size, this.radius);
 		pop();
 		if (!Item.valid(slot)) {
-			return null;
+			return false;
 		}
 		if (ICONS[slot.name]) {
 			image(ICONS[slot.name], x, y, this.block.size, this.block.size);
@@ -90,21 +126,22 @@ class PlayerUI {
 
 	draw() {
 		let length = this.player.inventory.maxBar;
+		let X, Y, index;
+		this.select = null;
 		push();
 		rectMode(CENTER);
 		imageMode(CENTER);
-		translate(
-			(width / 2) + (this.block.size / 2),
-			height - this.block.size
-		);
-		this.__drawBorder(-this.block.size / 2, 0, length, 1);
+		X = (width / 2) + (this.block.size / 2);
+		Y = height - this.block.size;
+		this._drawBorder(X-this.block.size / 2, Y, length, 1);
 
+		index = 0;
 		for (let x = -length / 2; x < length / 2; x++) {
-			this._drawBlock(
-				this.spacing / 2 + (this.block.size + this.spacing) * x,
-				0,
-				this.player.inventory.bar[(length / 2) + x],
-				(length / 2) + x === this.player.inventory.barIndex
+			this._block(
+				X + this.spacing / 2 + (this.block.size + this.spacing) * x,
+				Y,
+				index,
+				index++ === this.player.inventory.barIndex
 			);
 		}
 		pop();
@@ -119,26 +156,54 @@ class PlayerUI {
 		push();
 		rectMode(CENTER);
 		imageMode(CENTER);
-		translate(
-			(width / 2) + (this.block.size / 2),
-			(this.block.size * length / 2) + this.block.size
-		);
+		X = (width / 2) + (this.block.size / 2);
+		Y = (this.block.size * length / 2) + this.block.size;
 
-		this.__drawBorder(-this.block.size / 2, -this.block.size / 2 * value, length, length - value);
-		translate(0, this.block.size / 2);
-		let index = 0;
+		this._drawBorder(X-this.block.size / 2, Y-this.block.size / 2 * value, length, length - value);
+		Y += this.block.size / 2;
 		for (let y = -length / 2; y < length / 2; y++) {
-			for (let x = -length / 2; x < length / 2 && index < this.player.inventory.maxStorage; x++) {
-				this._drawBlock(
-					this.spacing / 2 + (this.block.size + this.spacing) * x,
-					this.spacing / 2 + (this.block.size + this.spacing) * y,
-					this.player.inventory.storage[index++],
+			for (let x = -length / 2; x < length / 2 && (index-this.player.inventory.maxBar) < this.player.inventory.maxStorage; x++) {
+				this._block(
+					X + this.spacing / 2 + (this.block.size + this.spacing) * x,
+					Y + this.spacing / 2 + (this.block.size + this.spacing) * y,
+					index++,
 					false
 				);
 			}
 		}
 
+		if (this.hold) {
+			let value = this.player.inventory.value;
+			this.player.inventory.value = [this.hold.item];
+			this._block(mouseX, mouseY, 0, false);
+			this.player.inventory.value = value;
+		}
 		pop();
+	}
+
+	mousePressed() {
+		if (this.select !== null) {
+			this.hold = {
+				item : this.player.inventory.value[this.select],
+				index : this.select
+			};
+			this.player.inventory.value[this.select] = undefined;
+		}
+	}
+
+	mouseReleased() {
+		let value = null;
+		if (this.hold) {
+			value = { index1 : this.hold.index };
+			if (this.select !== null) {
+				value.index2 = this.select;
+				this.player.inventory.value[this.hold.index] = this.hold.item;
+				this.player.inventory.switch(this.hold.index, this.select);
+			}
+		}
+		this.select = null;
+		this.hold = null;
+		return value;
 	}
 }
 

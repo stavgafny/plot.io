@@ -6,21 +6,23 @@ const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
 
 const stringifyInventory = inventory => {
-	let stringifiedInventory = {};
-	inventory = inventory.getStorage();
-	for (let storageUnit in inventory) {
-		stringifiedInventory[storageUnit] = [];
-		inventory[storageUnit].forEach(item => {
-			stringifiedInventory[storageUnit].push(
+	let stringified = [];
+	inventory = inventory.storage;
+	inventory.forEach(item => {
+		if (item) {
+			stringified.push(
 				{
 					id : item.id,
 					value : item.value
 				}
 			);
-		});
-	}
-	return stringifiedInventory;
+		} else {
+			stringified.push(undefined);
+		}
+	});
+	return stringified;
 };
+
 
 const stripBullet = bullet => {
 	return {
@@ -62,7 +64,7 @@ class Core {
 				startHealth: 100.0,
 				radius: 30,
 				speed: 3.6,
-				startInventory : exports.assets.Player.DEFAULT_INVENTORY.constructor.FORMAT,
+				startInventory : [],
 				maxPlayers: 10,
 				defaultPlayerColor: config.defaultPlayerColor,
 				playerFistDamage: 20,
@@ -79,7 +81,6 @@ class Core {
 		this.name = name;
 		this.type = type;
 		this.config = Object.assign({}, Core.DEFAULT_ROOM.config, config);
-		this.config.startInventory = Object.assign({}, Core.DEFAULT_ROOM.config.startInventory, config.startInventory);
 		this.map = Object.assign({}, Core.DEFAULT_ROOM.map, map);
 	}
 
@@ -88,15 +89,12 @@ class Core {
 	get broadcast() { return exports.io.sockets.in(this.stringify); }
 
 	get newPlayerInventory() {
-		let inventory = Core.DEFAULT_ROOM.config.startInventory;
+		let inventory = [];
 		try {
-			for (let storageUnit in this.config.startInventory) {
-				this.config.startInventory[storageUnit].forEach(template => {
-					let item = new template[0](
-						...template.slice(1, template.length)
-					);
-					inventory[storageUnit].push(item);
-				});
+			for (let template of this.config.startInventory) {
+				inventory.push(
+					new template[0](...template.slice(1, template.length))
+				);
 			}
 		}
 		finally {
@@ -152,6 +150,19 @@ exports.Room = class extends Core {
 	
 		socket.on("action-", () => {
 			player.hold = false;
+		});
+
+		socket.on("reload", () => {
+
+		});
+
+		socket.on("switch", data => {
+			if (data.index2 >= 0) {
+				player.inventory.switch(data.index1, data.index2);
+			} else {
+				player.inventory.value[data.index1] = undefined;
+			}
+			socket.emit("inventory", stringifyInventory(player.inventory));
 		});
 	
 		socket.on("disconnect", () => {

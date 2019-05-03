@@ -21,7 +21,8 @@ const KEYS = {
 	right: 68,
 	up: 87,
 	down: 83,
-	x : 88
+	x : 88,
+	reload : 82
 }
 const FIXED_DELTATIME = 60;
 const GROUND_COLOR = [128, 175, 73];
@@ -46,23 +47,23 @@ function getElementById(id) {
 }
 
 
-function templateListToObjects(templateList) {
-	let objectList = [];
-	templateList.forEach((template) => {
+function templateToObject(template) {
+	if (template) {
 		let object = getElementById(template.id);
 		if (object) {
-			objectList.push(new object(template.value));
+			return new object(template.value);
 		}
-	});
-	return objectList;
+	}
+	return undefined;
 }
 
 
-function objectifyInventory(inventory = {}) {
-	inventory = Object.assign(Inventory.FORMAT, inventory);
-	inventory.storage = templateListToObjects(inventory.storage);
-	inventory.bar = templateListToObjects(inventory.bar);
-	return inventory;
+function objectifyInventory(inventory = []) {
+	let objects = [];
+	inventory.forEach(template => {
+		objects.push(templateToObject(template));
+	});
+	return objects;
 }
 
 
@@ -190,6 +191,14 @@ function setup() {
 			bullets.push(b);
 		});
 
+		socket.on("inventory", inventory => {
+			player.inventory.value = objectifyInventory(inventory);
+		});
+
+		socket.on("slot", slot => {
+			
+		});
+
 		socket.on("closed", id => {
 			let p = getPlayerById(id);
 			let i = players.indexOf(p);
@@ -241,9 +250,11 @@ function draw() {
 		p.draw(true);
 	});
 	player.draw(false);
-	let angle = toAngle({ x: mouseX, y: mouseY }, { x: width / 2, y: height / 2 });
-	if (player.getAngle() !== angle) {
-		socket.emit("a", angle);
+	if (!playerUI.focus) {
+		let angle = toAngle({ x: mouseX, y: mouseY }, { x: width / 2, y: height / 2 });
+		if (player.getAngle() !== angle) {
+			socket.emit("a", angle);
+		}
 	}
 	drawStats();
 	push();
@@ -273,14 +284,25 @@ function windowResized() {
 
 
 function mousePressed(event) {
-	if (event.button == 0) {
-		socket.emit("action+");
+	if (playerUI.focus) {
+		playerUI.mousePressed();
+	} else {
+		if (event.button == 0) {
+			socket.emit("action+");
+		}
 	}
 }
 
 function mouseReleased(event) {
-	if (event.button == 0) {
-		socket.emit("action-");
+	if (playerUI.focus) {
+		let value = playerUI.mouseReleased();
+		if (value) {
+			socket.emit("switch", value);
+		}
+	} else {
+		if (event.button == 0) {
+			socket.emit("action-");
+		}
 	}
 }
 
@@ -289,6 +311,10 @@ function keyPressed(event) {
 	if (event.keyCode === 9) {
 		event.preventDefault(); // If tab is pressed
 		playerUI.toggle();
+		socket.emit("action-");
+	}
+	if (event.keyCode ===  KEYS.reload) {
+		socket.emit("reload");
 	}
 	if (event.keyCode > ASCII_NUMBER && event.keyCode <= ASCII_NUMBER + player.inventory.maxBar) {
 		socket.emit("changeSlot", event.keyCode - ASCII_NUMBER - 1);

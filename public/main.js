@@ -29,8 +29,13 @@ const GROUND_COLOR = [128, 175, 73];
 const GRID_GAP = 320;
 
 
+const getInstanceById = id => {
+	let item = Object.keys(assets)[id];
+	return graphics[item] ? graphics[item] : assets[item];
+}
 
-function getPlayerById(id) {
+
+const getPlayerById = id => {
 	if (player.id === id) {
 		return player;
 	}
@@ -39,17 +44,13 @@ function getPlayerById(id) {
 			return players[i];
 		}
 	}
-}
-
-function getElementById(id) {
-	let item = Object.keys(assets)[id];
-	return graphics[item] ? graphics[item] : assets[item];
+	return null;
 }
 
 
-function templateToObject(template) {
+const objectifyItem = template => {
 	if (template) {
-		let object = getElementById(template.id);
+		let object = getInstanceById(template.id);
 		if (object) {
 			return new object(template.value);
 		}
@@ -57,22 +58,32 @@ function templateToObject(template) {
 	return undefined;
 }
 
-
 function objectifyInventory(inventory = []) {
 	let objects = [];
 	inventory.forEach(template => {
-		objects.push(templateToObject(template));
+		try {
+			objects[template.index] = objectifyItem(template);
+		}
+		finally {
+
+		}
 	});
 	return objects;
 }
 
 
 function objectifyPlayer(data) {
-	let p = new graphics.Player(data.position, data.radius, data.health, data.speed, data.color, objectifyInventory(data.inventory));
+	let p = new graphics.Player(
+		data.position,
+		data.radius,
+		data.health,
+		data.speed,
+		data.color,
+		data.inventory ? objectifyInventory(data.inventory) : null
+	);
 	p.id = data.id;
 	p.angle = data.angle;
 	p.setAxis(data.axis);
-	p.changeSlot(data.index);
 
 	return p;
 }
@@ -119,7 +130,9 @@ function setup() {
 		playerUI = new PlayerUI(player);
 
 		socket.on("new", data => {
-			players.push(objectifyPlayer(data));
+			let p = objectifyPlayer(data);
+			p.changeSlot(data.currentSlot);
+			players.push(p);
 		});
 
 		socket.on("a", data => {
@@ -155,48 +168,67 @@ function setup() {
 
 		socket.on("punch", data => {
 			let p = getPlayerById(data.id);
-			if (p.currentSlot) {
-				p.changeSlot(-1);
-			}
+			p.changeSlot(null);
 			
-			if (p.fist.ready) {
-				p.punch(data.side);
-			}
+			//if (p.fist.ready) {
+			p.punch(data.side);
+			//}
 		});
 
 		socket.on("action", data => {
 			let p = getPlayerById(data.id);
-			if (data.index !== p.inventory.barIndex) {	
-				p.changeSlot(data.index);
-			}
+			p.changeSlot(data.currentSlot);
+
 			let object = p.currentSlot;
 			if (object) {
 				if (object.accessible) {
-					if (object.isReady()) {
-						object.use(p.getPosition(), p.angle, p.radius);
-					}
+					//if (object.isReady()) {
+					object.use(p.getPosition(), p.angle, p.radius);
+					//}
 				}
 			}
 		});
 
 		socket.on("changeSlot", data => {
 			let p = getPlayerById(data.id);
-			p.changeSlot(data.slot);
+			p.changeSlot(data.currentSlot);
 		});
 
 		socket.on("bullet", bullet => {
-			let ammo = getElementById(bullet.id);
-			let b = new graphics.Bullet(bullet.position, ammo.RADIUS, bullet.velocity, bullet.range, bullet.damage, bullet.drag, ammo.COLOR);
+			const ammo = getInstanceById(bullet.id);
+			if (!ammo) {
+				return;
+			}
+			const color = graphics.ammunitionColors[new ammo().name]; // ammo.PROPERTIES.name
+			const b = new graphics.Bullet(
+				bullet.position,
+				ammo.RADIUS,
+				bullet.velocity,
+				bullet.range,
+				bullet.damage,
+				bullet.drag,
+				color ? color : [0, 0, 0]
+			);
 			b.id = bullet.id;
 			bullets.push(b);
 		});
 
 		socket.on("inventory", inventory => {
-			player.inventory.value = objectifyInventory(inventory);
+			player.inventory.storage = objectifyInventory(inventory);
 		});
 
 		socket.on("slot", slot => {
-			
+			if (slot.index >= 0) {
+				player.inventory.storage[slot.index] = objectifyItem(slot);
+				player.currentSlot = player.inventory.currentSlot;
+			}
+		});
+
+		socket.on("slotValue", data => {
+			const slot = player.inventory.getByItemIndex(data.index);
+			if (slot) {
+				slot.value = data.value;
+			}
 		});
 
 		socket.on("closed", id => {
@@ -278,6 +310,7 @@ function draw() {
 	lastLoop = thisLoop;
 }
 
+
 function windowResized() {
 	resizeCanvas(window.innerWidth, window.innerHeight);
 }
@@ -297,7 +330,9 @@ function mouseReleased(event) {
 	if (playerUI.focus) {
 		let value = playerUI.mouseReleased();
 		if (value) {
-			socket.emit("switch", value);
+			if (value.source !== value.target) { // If not the same item[object not type]
+				socket.emit("changeInventory", value);
+			}
 		}
 	} else {
 		if (event.button == 0) {
@@ -319,6 +354,6 @@ function keyPressed(event) {
 	if (event.keyCode > ASCII_NUMBER && event.keyCode <= ASCII_NUMBER + player.inventory.maxBar) {
 		socket.emit("changeSlot", event.keyCode - ASCII_NUMBER - 1);
 	} else if (event.keyCode === KEYS.x) {
-		socket.emit("changeSlot", -1);
+		socket.emit("changeSlot");
 	}
 }

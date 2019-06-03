@@ -77,11 +77,11 @@ rooms.push(
 	new gameEngine.Room("1", "FFA", {
 		showHealth : true,
 		startInventory : [
-			[assets.M4, 10],
-			[assets.A9MM, 64],
-			[assets.AK47, 100],
-			[assets.M4, 10],
-			[assets.A556, 22]
+			new assets.M4(25),
+			new assets.AK47(12),
+			new assets.A762(11),
+			new assets.A762(10),
+			new assets.A762(100)
 		]
 	})//,
 	//new gameEngine.Room("2", "FFA", { showHealth: true }),

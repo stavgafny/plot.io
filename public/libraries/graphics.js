@@ -26,10 +26,12 @@ function preload() {
 	});
 
 	Object.assign(ICONS, {
+		'none' : loadImage('assets/none.png'),
 		'AK-47' : loadImage('assets/ak47.png'),
 		'M4' : loadImage('assets/m4.png'),
 		'9mm' : loadImage('assets/9mm.png'),
-		'5.56' : loadImage('assets/5.56.png')
+		'5.56' : loadImage('assets/5.56.png'),
+		'7.62' : loadImage('assets/7.62.png')
 	});
 }
 
@@ -74,8 +76,12 @@ function preload() {
 			};
 		};
 
-		constructor(position, radius, health, speed, color, inventory = []) {
+		constructor(position, radius, health, speed, color, inventory) {
 			super(position, radius, health, speed, color, inventory);
+			if (!inventory) {
+				this.inventory = null;
+			}
+			
 			this.stroke = 0;
 
 			this.damaged = {
@@ -173,13 +179,18 @@ function preload() {
 		}
 
 
-		changeSlot(index) {
+		changeSlot(slot=null) {
 			if (this.currentSlot) {
 				if (this.currentSlot.currentPulse) {
 					this.currentSlot.currentPulse = 0;
 				}
 			}
-			super.changeSlot(index);
+			if (this.inventory) {
+                super.changeSlot(slot !== null ? slot : -1);
+            } else {
+				let instance = getInstanceById(slot);
+                this.currentSlot = instance ? new instance() : null;
+			}
 		}
 
 	};
@@ -187,11 +198,11 @@ function preload() {
 
 	graphics.Weapon = class {
 		static assultDraw(radius, fist, color) {
-			let w = radius + radius*this.size.width;
-			let h = radius*this.size.height;
-			let f1 = radius*1.05;
+			let w = radius + radius * this.size.width;
+			let h = radius * this.size.height;
+			let f1 = radius * 1.05;
 			let f2 = radius + (w-radius) * 0.65;
-			let gripSize = w/8;
+			let gripSize = w / 8;
 	
 			let currentPulse = this.currentPulse * (radius * this.pulse);
 			push();
@@ -202,7 +213,7 @@ function preload() {
 			stroke(this.color.body);
 			rect(0, 0, w, h, 0, 10, 10, 0);
 			fill(this.color.grip);
-			rect((w/2) - gripSize*2, 0, gripSize*2, h);
+			rect((w/2) - gripSize * 2, 0, gripSize * 2, h);
 			stroke(0, 0, 0, 100);
 			noFill();
 			rect(0, 0, w, h, 0, 10, 10, 0);
@@ -211,8 +222,8 @@ function preload() {
 			ellipse(0, 0, radius*2);
 			strokeWeight(fist.handStroke);
 			fill(color.fist);
-			ellipse(f1 - currentPulse, fist.gap*.2, fist.radius*2);
-			ellipse(f2 - currentPulse, fist.gap*.3, fist.radius*2);
+			ellipse(f1 - currentPulse, fist.gap * .2, fist.radius * 2);
+			ellipse(f2 - currentPulse, fist.gap * .3, fist.radius * 2);
 			pop();
 		}
 	
@@ -281,17 +292,18 @@ function preload() {
 
 	// ~All game ammo~
 	
-	graphics.A556 = class extends assets.A556 {
-		static get COLOR() { return [40, 255, 150]; }
-		//AK [0, 255, 255];
-		constructor(amount) {
-			super(amount);
-		}
+	graphics.ammunitionColors = {
+		"5.56" : [40, 255, 150],
+		"7.62" : [0, 255, 255],
+		"yellow" : []
 	};
 
 	// ~All game weapons~
 
 	graphics.M4 = class extends assets.M4 {
+
+		static get BULLET_COLOR() { return [40, 255, 150]; }
+
 		constructor(currentAmmo) {
 	        super(currentAmmo);
 			this.color = {
@@ -306,11 +318,14 @@ function preload() {
 
 
 	graphics.AK47 = class extends assets.AK47 {
+
+		static get BULLET_COLOR() { return [0, 255, 255]; }
+		
 		constructor(currentAmmo) {
 	        super(currentAmmo);
 			this.color = {
 				body : [130, 130, 100],
-				grip : [220, 120, 0]
+				grip : [220, 130, 0]
 			};
 			this.draw = graphics.Weapon.assultDraw;
 			this.use = graphics.Weapon.assultUse;

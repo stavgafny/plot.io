@@ -2,7 +2,7 @@
 
 class Item {
 
-    static get DEFAULT_STACK() { return 6; }
+    static get DEFAULT_STACK() { return 32; }
 
     static valid(object) { return object instanceof Item; }
 
@@ -16,41 +16,110 @@ class Item {
     get type() { return this.constructor.name; }
 
     get value() { return this.amount; }
+    
+    set value(amount) { this.amount = amount; }
+
+    get stringify() {
+        return {
+            id : this.id,
+            value : this.value
+        };
+    }
 }
 
 
 class Storage {
+
     constructor(maxStorage) {
         this.maxStorage = maxStorage;
-        this.value = [];
+        this.storage = [];
+        //this.storage = [], get value() { null  -> no amount or value only standalone item}
     }
 
-    get length() { return this.maxStorage; }
+    get maxCapacity() { return this.maxStorage; }
 
-    get storage() { return Object.assign([], this.value); }
-
-    setValue(inventory) {
-        this.value = inventory;
+    setStorage(inventory) {
+        this.storage = inventory;
     }
 
     insert(item) {
         if (!Item.valid(item)) {
             return null;
         }
-        for (let i = 0; i < this.length; i++) {
-            if (!this.value[i]) {
-                this.value[i] = item;
+        for (let i = 0; i < this.maxCapacity; i++) {
+            if (!this.storage[i]) {
+                this.storage[i] = item;
                 return i;
             }
         }
         return -1;
     }
 
-    switch(index1, index2) {
-        let item = this.value[index1];
-        this.value[index1] = this.value[index2];
-        this.value[index2] = item;
+    _swap(source, target = null) {
+        // Returns true only if item was dropped
+        let item = this.storage[source];
+        this.storage[source] = this.storage[target];
+        if (target > 0 && target < this.maxCapacity) {
+            this.storage[target] = item;
+            return false;
+        }
+        return true;
     }
+
+    _combine(source, target) {
+        const item1 = this.storage[source];
+        const item2 = this.storage[target];
+        if (item2.amount < item2.maxAmount) {
+            const fetched = Math.min((item2.maxAmount - item2.amount), item1.amount);
+            item2.amount += fetched;
+            item1.amount -= fetched;
+            if (item1.amount <= 0) {
+                this.removeItemByIndex(source);
+            }
+        }
+    }
+
+    change(source, target) {
+        // gets two items in inventory by their given index (input).
+        // combines if they are the same items else tries to swap or drop.
+        const item1 = this.storage[source];
+        const item2 = this.storage[target];
+        if (item1 && item2) {
+            if (item1.id === item2.id) {
+                this._combine(source, target);
+                return false;
+            }
+        }
+        return this._swap(source, target);
+
+    }
+
+    getIndexByInstance(item) {
+        if (!item) {
+            return -1;
+        }
+        for (let i = 0; i < this.storage.length; i++) {
+            if (this.storage[i]) {
+                if (this.storage[i].id === item.id) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    getByItemIndex(index) {
+        const item = this.storage[index];
+        return item ? item : null;
+    }
+
+    removeItemByIndex(index) {
+        if (index > 0 && index < this.maxCapacity) {
+            return delete this.storage[index];
+        }
+        return false;
+    }
+
 };
 
 
@@ -62,9 +131,9 @@ class Inventory extends Storage {
         this.barIndex = -1;
     }
 
-    get currentSlot() { return this.value[this.barIndex]; }
+    get currentSlot() { return this.storage[this.barIndex]; }
     
-    get length() { return super.length + this.maxBar; }
+    get maxCapacity() { return super.maxCapacity + this.maxBar; }
 
     changeSlot(index=-1) {
         if (!(typeof(index) === 'number')) {
@@ -144,6 +213,8 @@ class Weapon extends Item {
 
     get value() {return this.currentAmmo; }
 
+    set value(currentAmmo) { this.currentAmmo = currentAmmo; }
+
     isReady() {
         return this.ready;
     }
@@ -200,11 +271,9 @@ class Weapon extends Item {
             this.speed = speed;
             this.setColor(color);
 
-            //if (has backpack)
-            //else
-
             this.inventory = exports.Player.DEFAULT_INVENTORY;
-            this.inventory.value = inventory;
+            this.inventory.storage = inventory;
+            
 
             this.axis = {
                 x: 0,
@@ -221,11 +290,11 @@ class Weapon extends Item {
                 hitBox: false,
                 side: 0
             };
+            
+            this.currentSlot = null;
         }
 
         get alive() { return this.health > 0; }
-
-        get currentSlot() { return this.inventory.currentSlot; }
 
         getPosition() {
             return {x : this.position.x, y : this.position.y};
@@ -303,28 +372,47 @@ class Weapon extends Item {
 
         changeSlot(slot) {
             this.inventory.changeSlot(slot);
+            this.currentSlot = this.inventory.currentSlot; 
+            return this.currentSlot;
         }
 
     };
 
+
     exports.A9MM = class extends Ammo {
+
         static get RADIUS() { return 4; }
+        
         constructor(amount = 1) {
             super("9mm", Item.DEFAULT_STACK, amount);
         }
     };
 
+
     exports.A556 = class extends Ammo {
+        
         static get RADIUS() { return 5; }
+        
         constructor(amount = 1) {
             super("5.56", Item.DEFAULT_STACK, amount);
         }
     };
 
+
+    exports.A762 = class extends Ammo {
+        
+        static get RADIUS() { return 5; }
+        
+        constructor(amount = 1) {
+            super("7.62", Item.DEFAULT_STACK, amount);
+        }
+    };
+    
+
     exports.M4 = class extends Weapon {
         constructor(currentAmmo = 0) {
             let size = {
-				width : 2.2,
+				width : 2.4,
 				height : .35
             };
             let bulletDrag = 0.015;
@@ -337,13 +425,13 @@ class Weapon extends Item {
     exports.AK47 = class extends Weapon {
         constructor(currentAmmo = 0) {
             let size = {
-				width : 2.4,
+				width : 2.2,
 				height : .38
             };
             let bulletDrag = 0.01;
             let pulse = 0.6;
             let rocil = 0.18;
-            super("AK-47", 100, 16, 22.2, 20, rocil, 120, pulse, true, size, exports.A556, bulletDrag, currentAmmo);
+            super("AK-47", 100, 30, 22.2, 20, rocil, 120, pulse, true, size, exports.A762, bulletDrag, currentAmmo);
         }
         
     };

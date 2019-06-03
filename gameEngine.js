@@ -5,26 +5,36 @@ exports.io = null;
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
 
+const getInstanceById = id => {
+	return exports.assets[Object.keys(exports.assets)[id]]
+}
+
+
+const stringifyItem = (inventory, index = null) => {
+	if (index === null) {
+		return;
+	}
+	const item = {index : index};
+	if (inventory[index]) {
+		Object.assign(item, inventory[index].stringify);
+	}
+	return item;
+}
+
+
 const stringifyInventory = inventory => {
-	let stringified = [];
-	inventory = inventory.storage;
-	inventory.forEach(item => {
-		if (item) {
-			stringified.push(
-				{
-					id : item.id,
-					value : item.value
-				}
-			);
-		} else {
-			stringified.push(undefined);
+	const stringifiedInventory = [];
+	for (let i = 0; i < inventory.length; i++) {
+		let stringifiedItem = stringifyItem(inventory, i);
+		if (stringifiedItem) {
+			stringifiedInventory.push(stringifiedItem);
 		}
-	});
-	return stringified;
-};
+	}
+	return stringifiedInventory;
+}
 
 
-const stripBullet = bullet => {
+const stringifyBullet = bullet => {
 	return {
 		id : bullet.id,
 		position : bullet.position,
@@ -35,7 +45,8 @@ const stripBullet = bullet => {
 	};
 };
 
-const stripPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealth) => {
+
+const stringifyPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealth) => {
 	let p = {
 		position: player.position,
 		radius: player.radius,
@@ -44,14 +55,17 @@ const stripPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealth) =
 		axis : player.getAxis(),
 		speed: player.speed,
 		color: player.color,
-		inventory : stringifyInventory(player.inventory),
-		index: player.inventory.barIndex,
 		id: player.id
 	};
-	
 	if (showHealth) {
 		p.health = player.health;
 	}
+	if (player.currentSlot) {
+		if (player.currentSlot.accessible) {
+			p.currentSlot = player.currentSlot.id;
+		}
+	}
+
 	return p;
 };
 
@@ -91,10 +105,15 @@ class Core {
 	get newPlayerInventory() {
 		let inventory = [];
 		try {
-			for (let template of this.config.startInventory) {
-				inventory.push(
-					new template[0](...template.slice(1, template.length))
-				);
+			for (let item of this.config.startInventory) {
+				if (item) {
+					let instance = getInstanceById(item.id);
+					if (instance) {
+						inventory.push(new instance(item.value));
+					}
+				} else {
+					inventory.push(undefined);
+				}
 			}
 		}
 		finally {
@@ -102,8 +121,6 @@ class Core {
 		}
 	}
 }
-
-
 
 
 
@@ -153,16 +170,74 @@ exports.Room = class extends Core {
 		});
 
 		socket.on("reload", () => {
+			const currentSlot = player.currentSlot;
+			if (!currentSlot) {
+				return;
+			}
+			if (!currentSlot.type === "Weapon") {
+				return;
+			}
 
+			const ammunition = [];
+			let ammoIndex = player.inventory.getIndexByInstance(currentSlot.bullet);
+			while (ammoIndex !== -1 && currentSlot.value < currentSlot.maxAmmo) {
+				const ammo = player.inventory.getByItemIndex(ammoIndex);
+				let fetched = Math.min((currentSlot.maxAmmo - currentSlot.value), ammo.amount);
+				currentSlot.value += fetched;
+				ammo.value -= fetched;
+				if (ammo.value <= 0) {
+					player.inventory.removeItemByIndex(ammoIndex);
+				}
+				ammunition.push(stringifyItem(player.inventory.storage, ammoIndex));
+				ammoIndex = player.inventory.getIndexByInstance(currentSlot.bullet);
+			}
+
+			for (let ammoSlot of ammunition) {
+				player.socket.emit("slot", ammoSlot);
+			}
+			if (ammunition.length > 0) {
+				player.socket.emit("slotValue", {index : player.inventory.barIndex, value : currentSlot.value});
+			}
 		});
 
-		socket.on("switch", data => {
-			if (data.index2 >= 0) {
-				player.inventory.switch(data.index1, data.index2);
-			} else {
-				player.inventory.value[data.index1] = undefined;
+		socket.on("changeInventory", data => {
+			let currentSlot = player.inventory.currentSlot;
+			player.inventory.change(data.source, data.target);
+			player.currentSlot = player.inventory.currentSlot;
+			const slots = [data.source, data.target];
+			
+			for (let index of slots) {
+
+				const slot = stringifyItem(player.inventory.storage, index);
+				if (slot) {
+					socket.emit("slot", slot);
+				}
 			}
-			socket.emit("inventory", stringifyInventory(player.inventory));
+			
+			if (currentSlot == player.inventory.currentSlot) {
+				return null;
+			}
+			data = { id : player.id };
+			if (!currentSlot) {
+				currentSlot = { accessible : false };
+			}
+
+			if (player.inventory.currentSlot) {
+				if (player.inventory.currentSlot.accessible) {
+					data.currentSlot = player.inventory.currentSlot.id;
+				} else {
+					if (!currentSlot.accessible) {
+						return null;
+					}
+				}
+			} else {
+				if (!currentSlot.accessible) {
+					return null;
+				}
+			}
+			
+			socket.broadcast.emit("changeSlot", data);
+
 		});
 	
 		socket.on("disconnect", () => {
@@ -187,22 +262,23 @@ exports.Room = class extends Core {
 		player.socket = socket;
 		player.hold = false;
 
-		let data = stripPlayer(player, this.config.showHealth);
+		let data = stringifyPlayer(player, this.config.showHealth);
 
 		this.broadcast.emit("new", data);
 
 		Object.assign(data, {
 			room : this.stringify,
-			health : player.health
+			health : player.health,
+			inventory : stringifyInventory(player.inventory.storage)
 		});
 
 		socket.emit("join", data);
 		
 		this.players.forEach(p => {
-			socket.emit("new", stripPlayer(p, this.config.showHealth));
+			socket.emit("new", stringifyPlayer(p, this.config.showHealth));
 		});
 		this.bullets.forEach(b => {
-			socket.emit("bullet", stripBullet(b));
+			socket.emit("bullet", stringifyBullet(b));
 		});
 
 		this.players.push(player);
@@ -292,10 +368,26 @@ exports.Room = class extends Core {
 	}
 
 
-	changePlayerSlot(player, slot) {
-		player.changeSlot(slot);
-		this.broadcast.emit("changeSlot", { slot : player.inventory.barIndex, id : player.id });
+	changePlayerSlot(player, slot=-1) {
+		if (slot < player.inventory.maxBar) {
+			player.changeSlot(slot);
+			const data = {
+				id : player.id
+			};
+			if (player.inventory.barIndex !== -1) {
+				data.currentSlot = player.inventory.barIndex;
+			}
+			player.socket.emit("changeSlot", data);
 
+			const currentSlot = player.inventory.currentSlot;
+			delete data.currentSlot;
+			if (currentSlot) {
+				if (currentSlot.accessible) {
+					data.currentSlot = currentSlot.id;
+				}
+			}
+			player.socket.broadcast.emit("changeSlot", data);
+		}
 	}
 
 	playerAction(player) {
@@ -305,10 +397,18 @@ exports.Room = class extends Core {
 				if (object.isReady() && object.value > 0) {
 					let bullet = object.use(player.getPosition(), player.angle, player.radius);
 					if (bullet) {
+						Object.assign(bullet, {id : object.bullet.id});
 						bullet.id = object.bullet.id;
 						this.bullets.push(bullet);
-						this.broadcast.emit("action", { id : player.id, index : player.inventory.barIndex });
-						this.broadcast.emit("bullet", stripBullet(bullet));
+						
+						const data = {
+							id : player.id,
+							currentSlot : player.inventory.barIndex
+						};
+						player.socket.emit("action", data);
+						data.currentSlot = object.id;
+						player.socket.broadcast.emit("action", data);
+						this.broadcast.emit("bullet", stringifyBullet(bullet));
 						if (!object.isAuto) {
 							player.hold = false;
 						}

@@ -4,7 +4,7 @@
   "description": "2d shooting game",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app"
   },
   "author": "StavGafny",
   "license": "ISC",

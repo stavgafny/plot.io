@@ -2,32 +2,60 @@
 
 document.addEventListener('contextmenu', event => event.preventDefault());
 window.addEventListener("focus", event => {
-	// get all data again.
-	// prevent spam
+	
 });
+
+window.addEventListener('beforeunload', event => {
+	return;
+	if (player) {
+		event.returnValue = "";
+	}
+});
+
+const FIXED_DELTATIME = 60;
+const CAMERA = { x: 0, y: 0 };
+
+const STATUS = {
+	background : [35, 35, 35, 255],
+	connect : "Trying to reach room...",
+	disconnected : "server disconnected.",
+	dead : "You are dead\nBetter luck next time ._.",
+	won : "Winner Winner Chicked Dinner!\nTo play again please enter a new room you with to join or simply refresh the page.",
+	queue : "Waiting for other players",
+	timer : "Time's up!"
+}
+
+const MODES = {
+	ffa : "FFA",
+	battleRoyale : "BATTLE_ROYALE"
+}
+
+const game = {
+	fps: 60,
+	deltaTime: 1,
+	timer : null,
+	status : null,
+	mode : null
+};
 
 let socket, player, playerUI;
 const players = [];
 const bullets = [];
-const CAMERA = { x: 0, y: 0 };
-const game = {
-	fps: 60,
-	deltaTime: 0
-};
 
 const ASCII_NUMBER = 48
 const KEYS = {
+	escape : 27,
 	left: 65,
 	right: 68,
 	up: 87,
 	down: 83,
 	x : 88,
-	reload : 82
+	reload : 82,
+	tab : 9
 }
-const FIXED_DELTATIME = 60;
-const GROUND_COLOR = [128, 175, 73];
-const GRID_GAP = 320;
 
+const GROUND_COLOR = [80, 150, 40];
+const GRID_GAP = 320;
 
 const getInstanceById = id => {
 	let item = Object.keys(assets)[id];
@@ -73,17 +101,18 @@ function objectifyInventory(inventory = []) {
 
 
 function objectifyPlayer(data) {
-	let p = new graphics.Player(
-		data.position,
-		data.radius,
-		data.health,
-		data.speed,
-		data.color,
-		data.inventory ? objectifyInventory(data.inventory) : null
+	const {position, radius, status, speed, color, inventory, id, angle, axis} = data;
+	const p = new graphics.Player(
+		position,
+		radius,
+		status,
+		speed,
+		color,
+		inventory ? objectifyInventory(inventory) : null
 	);
-	p.id = data.id;
-	p.angle = data.angle;
-	p.setAxis(data.axis);
+	p.id = id;
+	p.angle = angle;
+	p.setAxis(axis);
 
 	return p;
 }
@@ -115,59 +144,92 @@ function handlePlayerAxis() {
 
 function setup() {
 	frameRate(144);
-	socket = io.connect(`${window.location.hostname}`);
+	game.status = STATUS.connect;
+	if (!socket) {
+		socket = io.connect(window.location.hostname, {
+			reconnection: true,
+			reconnectionDelay: 1000,
+			reconnectionDelayMax : 5000,
+			reconnectionAttempts: Infinity
+		});
+	}
 	createCanvas(window.innerWidth, window.innerHeight, P2D);
 	graphics.context = canvas.getContext("2d");
 	cursor(CROSS);
 
-	socket.on("join", data => {
+	socket.on("connect", () => {
+		game.status = STATUS.connect;
+	});
 
-		if (data.room !== undefined) {
-			history.pushState(null, '', `/?game=${data.room}`);
+	socket.on("info", data => {
+		if (data.hasOwnProperty("roomName")) {
+			history.pushState(null, '', `/?game=${data.roomName}`);
+			game.mode = data.roomName.split(":")[0];
+			delete data.roomName;
 		}
+		if (data.hasOwnProperty("status")) {
+			game.status = STATUS[data.status];
+			if (game.status === STATUS.won) {
+				player = null;
+			}
+			delete data.status;
+		}
+		if (data.timer === 0) {
+			game.status = STATUS.timer;
+			player = null;
+		}
+		Object.assign(game, data);
+	});
+
+	socket.on("join", data => {
 
 		player = objectifyPlayer(data);
 		playerUI = new PlayerUI(player);
-
+		players.length = 0;
+		game.status = null;
 		socket.on("new", data => {
-			let p = objectifyPlayer(data);
+			data.status = {};
+			data.timer = 0;
+			if (data.hasOwnProperty("health")) {
+				data.status.health = data.health;
+			}
+			const p = objectifyPlayer(data);
 			p.changeSlot(data.currentSlot);
 			players.push(p);
 		});
 
 		socket.on("a", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			if (p) {
 				p.setAngle(data.angle);
 			}
 		});
 
 		socket.on("pos", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			if (p) {
 				p.setPosition(data.position);
 			}
 		});
 
 		socket.on("hp:d", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			if (p) {
-				if (data.hasOwnProperty("health")) {
-					p.setHealth(data.health);
-				}
+				delete data.id;
+				Object.assign(p.status, data);
 				p.setDamaged();
 			}
 		});
 
 		socket.on("axis", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			if (p) {
 				p.setAxis(data.axis);
 			}
 		});
 
 		socket.on("punch", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			p.changeSlot(null);
 			
 			//if (p.fist.ready) {
@@ -176,7 +238,7 @@ function setup() {
 		});
 
 		socket.on("action", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			p.changeSlot(data.currentSlot);
 
 			let object = p.currentSlot;
@@ -188,9 +250,20 @@ function setup() {
 				}
 			}
 		});
+		
+		socket.on("reload", data => {
+			const p = getPlayerById(data.id);
+			p.changeSlot(data.currentSlot);
+			const item = p.currentSlot;
+			if (item) {
+				if (item.accessible) {
+					item.reload(p.position)
+				}
+			}
+		});
 
 		socket.on("changeSlot", data => {
-			let p = getPlayerById(data.id);
+			const p = getPlayerById(data.id);
 			p.changeSlot(data.currentSlot);
 		});
 
@@ -200,14 +273,15 @@ function setup() {
 				return;
 			}
 			const color = graphics.ammunitionColors[new ammo().name]; // ammo.PROPERTIES.name
+			const {position, velocity, range, damage, drag} = bullet;
 			const b = new graphics.Bullet(
-				bullet.position,
+				position,
 				ammo.RADIUS,
-				bullet.velocity,
-				bullet.range,
-				bullet.damage,
-				bullet.drag,
-				color ? color : [0, 0, 0]
+				velocity,
+				range,
+				damage,
+				drag,
+				color ? color : graphics.ammunitionColors[undefined]
 			);
 			b.id = bullet.id;
 			bullets.push(b);
@@ -231,28 +305,77 @@ function setup() {
 			}
 		});
 
-		socket.on("closed", id => {
-			let p = getPlayerById(id);
-			let i = players.indexOf(p);
-			players.splice(i, 1);
+		socket.on("walk", id => {
+			const p = getPlayerById(data.id);
+			p.walk();
 		});
 
-		socket.on("disconnect", () => {
-			player = null;
+		socket.on("kill", id => {
+			const p = getPlayerById(id);
+			if (p.currentSlot) {
+				if (p.currentSlot.accessible) {
+					if (p.currentSlot.sound) {
+						p.currentSlot.sound.object.stop(p.currentSlot.sound.id);
+					}
+				}
+			}
+			const i = players.indexOf(p);
+			if (i === -1) {
+				player = null;
+				game.status = STATUS.dead;
+			} else {
+				players.splice(i, 1);
+			}
 		});
 	});
+
+	socket.on("disconnect", () => {
+		game.timer = null;
+		player = null;
+		game.status = STATUS.disconnected + '\n' + STATUS.connect;
+	});
+
+	
 }
 
-let lastLoop = Date.now();
-function draw() {
-	if (!player) {
-		return null;
+const drawStatus = () => {
+	push();
+	background(STATUS.background);
+	translate(width / 2, height / 2);
+	fill(255);
+	noStroke();
+	textSize(20);
+	textAlign(CENTER, CENTER);
+	if (typeof game.status === "string") {
+		let textValue = game.status;
+		if (game.mode === MODES.battleRoyale) {
+
+			if (game.status === STATUS.queue) {
+				textValue += `\n${game.currentPlayers}/${game.maxPlayers}`;
+			}
+			else if (game.status === STATUS.dead) {
+				textValue += `\nYour rank is #${(players.length + 1).toString()}`;
+			}
+			else if (game.status === STATUS.won) {
+
+			}
+
+		}
+
+		text(textValue, 0, 0);
+
+
+		//button("asd", 0, 0);
 	}
-	let thisLoop = Date.now();
+	pop();
+}
+
+const drawGame = () => {
 	drawBackground();
 	handlePlayerAxis();
 	
 	player.update(game.deltaTime);
+	player.updateStatus(game.deltaTime);
 	CAMERA.x = player.position.x;
 	CAMERA.y = player.position.y;
 
@@ -265,7 +388,6 @@ function draw() {
 			for (let p = 0; p < allPlayers.length && !hit; p++) {
 				if (allPlayers[p].collide(bullets[i])) {
 					hit = true;
-					//allPlayers[p].setDamaged();
 					bullets.splice(i, 1);
 				}
 			}
@@ -288,24 +410,26 @@ function draw() {
 			socket.emit("a", angle);
 		}
 	}
-	drawStats();
-	push();
-	translate(width - 20, 30);
-	textAlign(RIGHT);
-	textSize(20);
-	fill(255);
-	text(`X: ${player.position.x.toFixed(0)} Y: ${player.position.y.toFixed(0)}`, 0, 0);
-	fill(255);
-	translate(-width + 30, 0);
-	textAlign(LEFT);
-	text(`Fps : ${floor(game.fps)}`, 0, 0);
-	pop();
-
-	
+		
 	playerUI.draw();
+	playerUI.drawStats();
+	drawInfo();
+}
 
+let lastLoop = Date.now();
 
-	game.fps = 1000 / (thisLoop - lastLoop);
+function draw() {
+	let thisLoop = Date.now();
+
+	let timeLapse = thisLoop - lastLoop;
+	if (socket.connected && player) {
+		drawGame();
+		game.timer += game.mode === MODES.battleRoyale ?  -timeLapse : timeLapse;
+	} else {
+		drawStatus();
+	}
+
+	game.fps = 1000 / (timeLapse);
 	game.deltaTime = FIXED_DELTATIME / game.fps;
 	lastLoop = thisLoop;
 }
@@ -321,6 +445,7 @@ function mousePressed(event) {
 		playerUI.mousePressed();
 	} else {
 		if (event.button == 0) {
+			player.hold = true;
 			socket.emit("action+");
 		}
 	}
@@ -336,6 +461,7 @@ function mouseReleased(event) {
 		}
 	} else {
 		if (event.button == 0) {
+			player.hold = false;
 			socket.emit("action-");
 		}
 	}
@@ -343,17 +469,31 @@ function mouseReleased(event) {
 
 
 function keyPressed(event) {
-	if (event.keyCode === 9) {
+	if (event.keyCode === KEYS.tab) {
 		event.preventDefault(); // If tab is pressed
 		playerUI.toggle();
 		socket.emit("action-");
 	}
 	if (event.keyCode ===  KEYS.reload) {
+		const item = player.currentSlot;
+		if (item) {
+			if (item.type === "Weapon") {
+				if (item.ammo < item.capacity && player.inventory.getIndexByInstance(item.ammoType) !== -1 && !playerUI.blob && !player.hold) {
+					playerUI.setDelayBlob(item.reloadTime);
+					item.reload(player.position);
+				}
+			}
+		}
 		socket.emit("reload");
 	}
-	if (event.keyCode > ASCII_NUMBER && event.keyCode <= ASCII_NUMBER + player.inventory.maxBar) {
+	if (event.keyCode > ASCII_NUMBER &&
+		event.keyCode <= ASCII_NUMBER + player.inventory.maxBar &&
+		event.keyCode - ASCII_NUMBER - 1 !== player.inventory.barIndex
+		) {
 		socket.emit("changeSlot", event.keyCode - ASCII_NUMBER - 1);
-	} else if (event.keyCode === KEYS.x) {
+		playerUI.clearDelayBlob();
+	} else if (event.keyCode === KEYS.x && player.inventory.barIndex !== -1) {
 		socket.emit("changeSlot");
+		playerUI.clearDelayBlob();
 	}
 }

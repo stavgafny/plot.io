@@ -5,6 +5,21 @@ const socketEngine = require('socket.io');
 const gameEngine = require('./gameEngine.js');
 const assets = gameEngine.assets;
 
+const COLORS = {
+	fg : {
+		black : "\x1b[30m",
+		white : "\x1b[0m",
+		red : "\x1b[31m",
+		green : "\x1b[32m"
+	},
+
+	bg : {
+		black : "\x1b[40m",
+		white : "\x1b[47m"
+	}
+};
+
+
 const PORT = 80;
 const GET = "/?game=";
 const app = express();
@@ -43,13 +58,17 @@ function getRandomRoom() {
 }
 
 const handleConnection = socket => {
-	console.log(`New user has joined: ${socket.id}`);
+	console.log(COLORS.fg.green, `[+]${socket.id}`, COLORS.bg.black, COLORS.fg.white);
 	
 	// client full url
 	const get = socket.handshake.headers.referer;
 
 	// Gets requested room if exists.
-	const requestedRoom = get.lastIndexOf(GET) + 1 ? get.substring(get.lastIndexOf(GET) + GET.length) : "";
+	const requestedRoom = get.lastIndexOf(GET) + 1 ? get.substring(get.lastIndexOf(GET) + GET.length) : null;
+
+	if (requestedRoom === null) {
+
+	}
 
 	// Gets the room by its name if there is else returns undefined.
 	let room = getRoomByName(requestedRoom);
@@ -66,26 +85,45 @@ const handleConnection = socket => {
 	}
 
 	// Adds the player to the room and handles all of his future requests
-	room.addPlayer(socket);	
+	room.addPlayer(socket);
+
+	// Handle player disconnection
+	socket.on("disconnect", () => {
+		console.log(COLORS.fg.red, `[-]${socket.id}`, COLORS.bg.black, COLORS.fg.white);
+	});
 }
 
 io.sockets.on("connection", handleConnection);
 
 
-
 rooms.push(
 	new gameEngine.Room("1", "FFA", {
-		showHealth : true,
+		showHealth : false,
 		startInventory : [
-			new assets.M4(25),
-			new assets.AK47(12),
-			new assets.A762(11),
-			new assets.A762(10),
-			new assets.A762(100)
+			new assets.M4(12),
+			new assets.A556(30),
+			new assets.A556(30),
+			new assets.A9MM(30)
 		]
-	})//,
-	//new gameEngine.Room("2", "FFA", { showHealth: true }),
-	//new gameEngine.Room("3", "FFA", { radius: 50, defaultPlayerColor: { stroke: [255, 255, 0], body: [100, 200, 200] }, startHp: 10, speed: 8 })
+	})
+);
+
+
+rooms.push(
+	new gameEngine.BATTLE_ROYALE("1", {
+
+		status : {
+			health : 100
+		},
+
+		startInventory : [
+			new assets.AK47(0),
+			new assets.M9(0),
+			new assets.A762(18),
+			new assets.A9MM(32)
+		]
+	})
 );
 
 rooms[0].run();
+rooms[1].run();

@@ -59,7 +59,7 @@ class Storage {
         // Returns true only if item was dropped
         let item = this.storage[source];
         this.storage[source] = this.storage[target];
-        if (target > 0 && target < this.maxCapacity) {
+        if (target >= 0 && target < this.maxCapacity && target !== null) {
             this.storage[target] = item;
             return false;
         }
@@ -147,7 +147,6 @@ class Inventory extends Storage {
 }
 
 
-
 class Body {
     // ~rigid body~
     constructor(position, radius) {
@@ -182,7 +181,7 @@ class Bullet extends Body {
 
     update(deltaTime=1) {
         
-		let ratio = 1 / (1 + (this.drag * deltaTime));
+		let ratio = 1.0 / (1 + (this.drag * deltaTime));
 		this.velocity.x *= ratio;
         this.velocity.y *= ratio;
         
@@ -193,10 +192,10 @@ class Bullet extends Body {
 }
 
 class Weapon extends Item {
-    constructor(name, fireRate, maxAmmo, velocity, damage, recoil, range, pulse, isAuto, size, bullet, bulletDrag, currentAmmo) {
+    constructor(weapon) {
+        const {name, fireRate, velocity, damage, recoil, range, pulse, isAuto, size, ammoType, bulletDrag, capacity, reloadTime, ammo = 0} = weapon;
         super(name, true, 1);
         this.fireRate = fireRate;
-        this.maxAmmo = maxAmmo;
         this.velocity = velocity;
         this.damage = damage;
         this.recoil = recoil;
@@ -204,16 +203,19 @@ class Weapon extends Item {
         this.pulse = pulse;
         this.isAuto = isAuto;
         this.size = size;
-        this.bullet = bullet;
+        this.ammoType = ammoType;
         this.bulletDrag = bulletDrag;
-        this.currentAmmo = currentAmmo < 0 ? this.maxAmmo : currentAmmo;
+        this.capacity = capacity;
+        this.reloadTime = reloadTime;
+        this.ammo = ammo;
+        
         this.ready = true;
         this.currentPulse = 0;
     }
 
-    get value() {return this.currentAmmo; }
+    get value() {return this.ammo; }
 
-    set value(currentAmmo) { this.currentAmmo = currentAmmo; }
+    set value(ammo) { this.ammo = ammo; }
 
     isReady() {
         return this.ready;
@@ -243,8 +245,8 @@ class Weapon extends Item {
             y : Math.sin(angle + pulse) * this.velocity
         };
 
-        this.currentAmmo--;
-        return new Bullet(position, this.bullet.RADIUS, velocity, this.range, this.damage, this.bulletDrag);
+        this.ammo--;
+        return new Bullet(position, this.ammoType.RADIUS, velocity, this.range, this.damage, this.bulletDrag);
     }
 
 
@@ -264,10 +266,30 @@ class Weapon extends Item {
     exports.Player = class extends Body {
 
         static get DEFAULT_INVENTORY() { return new Inventory(4, 2); }
+        
+        static get STATUS() {
+            return {
+                default : {
+                    health : 50,
+                    thirst : 120,
+                    hunger : 250
+                },
+                maximum : {
+                    health : 100,
+                    thirst : 1000,
+                    hunger : 1000
+                },
+                decrement : {
+					health : 1.5,
+                    thirst : 0.012,
+                    hunger : 0.0237
+                }
+            };
+        }
 
-        constructor(position, radius, health, speed, color, inventory = []) {
+        constructor(position, radius, status, speed, color, inventory = []) {
             super(position, radius);
-            this.health = health;
+            this.status = status;
             this.speed = speed;
             this.setColor(color);
 
@@ -294,7 +316,24 @@ class Weapon extends Item {
             this.currentSlot = null;
         }
 
-        get alive() { return this.health > 0; }
+        get alive() { return this.status.health > 0; }
+
+		updateStatus(deltaTime) {
+			const values = ["thirst", "hunger"];
+			let penalty = 0;
+			for (let value of values) {
+				const decrement = exports.Player.STATUS.decrement[value];
+				if (decrement && this.status.hasOwnProperty(value)) {
+					this.status[value] -= decrement * deltaTime;
+					if (this.status[value] < 0) {
+						penalty += this.status[value];
+						this.status[value] = 0;
+					}
+				}
+			}
+			const decrement = exports.Player.STATUS.decrement.health;
+			this.status.health = this.status.health + (penalty * decrement);
+		}
 
         getPosition() {
             return {x : this.position.x, y : this.position.y};
@@ -312,17 +351,9 @@ class Weapon extends Item {
             this.angle = angle;
         }
 
-        getHealth() {
-            return this.health;
-        }
-
-        setHealth(health) {
-            this.health = Math.max(health, 0);
-        }
-
         setColor(color) {
             this.color = color;
-            if (this.color.fist === undefined) {
+            if (!this.color.fist) {
                 this.color.fist = this.color.body;
             }
         }
@@ -372,7 +403,12 @@ class Weapon extends Item {
 
         changeSlot(slot) {
             this.inventory.changeSlot(slot);
-            this.currentSlot = this.inventory.currentSlot; 
+            this.currentSlot = this.inventory.currentSlot;
+            if (this.currentSlot) {
+                if (this.currentSlot.accessible) {
+                    this.currentSlot.ready = true;
+                }
+            }
             return this.currentSlot;
         }
 
@@ -407,33 +443,92 @@ class Weapon extends Item {
             super("7.62", Item.DEFAULT_STACK, amount);
         }
     };
+
+
+    exports.M9 = class extends Weapon {
+
+        static get PROPERTIES() {
+            return {
+                name : "M9",
+                fireRate : 94,
+                velocity : 21.3,
+                damage : 14,
+                recoil : 0.4,
+                range : 65,
+                pulse : 0.4,
+                isAuto : false,
+                size : {
+                    width : 1,
+                    height : .35
+                },
+                ammoType : exports.A9MM,
+                bulletDrag : 0.015,
+                capacity : 15,
+                reloadTime : 2100
+            };
+        }
+
+        constructor(ammo) {
+            super(Object.assign(exports.M9.PROPERTIES, {ammo : ammo}));
+        }
+    };
     
 
     exports.M4 = class extends Weapon {
-        constructor(currentAmmo = 0) {
-            let size = {
-				width : 2.4,
-				height : .35
+
+        static get PROPERTIES() {
+            return {
+                name : "M4",
+                fireRate : 70,
+                velocity : 24.8,
+                damage : 14,
+                recoil : 0.4,
+                range : 80,
+                pulse : 0.5,
+                isAuto : true,
+                size : {
+                    width : 2.4,
+                    height : .35
+                },
+                ammoType : exports.A556,
+                bulletDrag : 0.015,
+                capacity : 30,
+                reloadTime : 3100
             };
-            let bulletDrag = 0.015;
-            let pulse = 0.5;
-            let rocil = 0.4;
-            super("M4", 70, 30, 24.8, 14, rocil, 80, pulse, true, size, exports.A556, bulletDrag, currentAmmo);
+        }
+
+        constructor(ammo) {
+            super(Object.assign(exports.M4.PROPERTIES, {ammo : ammo}));
         }
     };
 
+
     exports.AK47 = class extends Weapon {
-        constructor(currentAmmo = 0) {
-            let size = {
-				width : 2.2,
-				height : .38
+
+        static get PROPERTIES() {
+            return {
+                name : "AK-47",
+                fireRate : 100,
+                velocity : 22.2,
+                damage : 20,
+                recoil : 0.195,
+                range : 120,
+                pulse : 0.6,
+                isAuto : true,
+                size : {
+                    width : 2.2,
+                    height : .38
+                },
+                ammoType : exports.A762,
+                bulletDrag : 0.01,
+                capacity : 30,
+                reloadTime : 2500
             };
-            let bulletDrag = 0.01;
-            let pulse = 0.6;
-            let rocil = 0.18;
-            super("AK-47", 100, 30, 22.2, 20, rocil, 120, pulse, true, size, exports.A762, bulletDrag, currentAmmo);
         }
-        
+
+        constructor(ammo) {
+            super(Object.assign(exports.AK47.PROPERTIES, {ammo : ammo}));
+        }
     };
     
     

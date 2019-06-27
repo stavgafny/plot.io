@@ -1,217 +1,3 @@
-/*
-class PlayerUI {
-
-	static get PROPERTIES() {
-		return {
-			border : {
-				size : 10,
-				color : [160, 160, 160, 180]
-			},
-
-			block : {
-				size : 70,
-				color : [80, 80, 80, 100],
-				stroke : [0, 0, 0, 80],
-				strokeWeight : 1,
-				highlight : {
-					color : [255, 0, 0, 60],
-					stroke : [255, 255, 255, 150],
-					strokeWeight : 2
-				},
-				select : {
-					color : [255, 255, 255, 100],
-					stroke : [255, 255, 255],
-					strokeWeight : 2
-				}
-			},
-			spacing : 5,
-			radius : 6
-		};
-	}
-
-	constructor(player) {
-		this.player = player;
-		this.border = PlayerUI.PROPERTIES.border;
-		this.block = PlayerUI.PROPERTIES.block;
-		this.spacing = PlayerUI.PROPERTIES.spacing;
-		this.radius = PlayerUI.PROPERTIES.radius;
-		this.focus = false;
-		this.select = null;
-		this.hold = null;
-	}
-
-	toggle() {
-		this.focus = !this.focus;
-	}
-
-	_mouseOnBlock(x, y) {
-		return mouseX > x - this.block.size / 2 &&
-			mouseX < x + this.block.size / 2 &&
-			mouseY > y - this.block.size / 2 &&
-			mouseY < y + this.block.size / 2;
-	}
-
-	_drawBorder(x, y, w, h, radius = this.radius) {
-		push();
-		rectMode(CENTER);
-		imageMode(CENTER);
-		noStroke();
-		fill(this.border.color);
-		rect(
-			x,
-			y,
-			((this.block.size + this.spacing) * w) + this.border.size - this.spacing,
-			((this.block.size + this.spacing) * h) + this.border.size - this.spacing,
-			radius
-		);
-		pop();
-	}
-
-	_block(x, y, index, highlight=false) { // hightlight mode 0-NONE -1 Onselect -2 On mouse
-		push();
-		let slot = this.player.inventory.value[index];
-		let select = false;
-
-		if (this.focus && !this.select && (slot || this.hold)) {
-			let isHoldedSelected = false;
-			if (this.hold) {
-				isHoldedSelected = slot === this.hold.item;
-			}
-			if (!isHoldedSelected) {
-				if (this._mouseOnBlock(x, y)) {
-					this.select = index;
-					select = true;
-				}
-			}
-		}
-
-		if (select && slot !== this.hold) { // not selcets the holded item and not selecting empty blocks
-			stroke(this.block.select.stroke);
-			fill(this.block.select.color);
-			strokeWeight(this.block.select.strokeWeight);
-		}
-		else if (highlight) {
-			stroke(this.block.highlight.stroke);
-			fill(this.block.highlight.color);
-			strokeWeight(this.block.highlight.strokeWeight);
-		} else {
-			stroke(this.block.stroke);
-			fill(this.block.color);
-			strokeWeight(this.block.strokeWeight);
-		}
-		rect(x, y, this.block.size, this.block.size, this.radius);
-		pop();
-		if (!Item.valid(slot)) {
-			return false;
-		}
-		if (ICONS[slot.name]) {
-			image(ICONS[slot.name], x, y, this.block.size, this.block.size);
-		}
-		let value = "";
-		if (slot.amount > 1) {
-			value = "x" + slot.value.toString();
-		} else {
-			if (slot.type === "Weapon") {
-				value = slot.value.toString();
-			}
-		}
-
-		push();
-		fill(255);
-		noStroke();
-		textAlign(CENTER);
-		textSize(this.block.size / 5)
-		text(value, x, y + this.block.size * .45);
-		pop();
-	}
-
-	draw() {
-		let length = this.player.inventory.maxBar;
-		let X, Y, index;
-		this.select = null;
-		push();
-		rectMode(CENTER);
-		imageMode(CENTER);
-		X = (width / 2) + (this.block.size / 2);
-		Y = height - this.block.size;
-		this._drawBorder(X-this.block.size / 2, Y, length, 1);
-
-		index = 0;
-		for (let x = -length / 2; x < length / 2; x++) {
-			this._block(
-				X + this.spacing / 2 + (this.block.size + this.spacing) * x,
-				Y,
-				index,
-				index++ === this.player.inventory.barIndex
-			);
-		}
-		pop();
-
-		if (!this.focus) {
-			return null;
-		}
-
-		length = Math.ceil(Math.sqrt(this.player.inventory.maxStorage));
-		let value = Math.sqrt(this.player.inventory.maxStorage) % 1;
-		value = value % 1 >= .5 || value % 1 === 0 ? 0 : 1;
-		push();
-		rectMode(CENTER);
-		imageMode(CENTER);
-		X = (width / 2) + (this.block.size / 2);
-		Y = (this.block.size * length / 2) + this.block.size;
-
-		this._drawBorder(X-this.block.size / 2, Y-this.block.size / 2 * value, length, length - value);
-		Y += this.block.size / 2;
-		for (let y = -length / 2; y < length / 2; y++) {
-			for (let x = -length / 2; x < length / 2 && (index-this.player.inventory.maxBar) < this.player.inventory.maxStorage; x++) {
-				this._block(
-					X + this.spacing / 2 + (this.block.size + this.spacing) * x,
-					Y + this.spacing / 2 + (this.block.size + this.spacing) * y,
-					index++,
-					false
-				);
-			}
-		}
-
-		if (this.hold) {
-			let value = this.player.inventory.value;
-			this.player.inventory.value = [this.hold.item];
-			this._block(mouseX, mouseY, 0, false);
-			this.player.inventory.value = value;
-		}
-		pop();
-	}
-
-	mousePressed() {
-		if (this.select !== null) {
-			this.hold = {
-				item : this.player.inventory.value[this.select],
-				index : this.select
-			};
-			this.player.inventory.value[this.select] = undefined;
-		}
-	}
-
-	mouseReleased() {
-		let value = null;
-		if (this.hold) {
-			value = { index1 : this.hold.index };
-			if (this.select !== null) {
-				value.index2 = this.select;
-				this.player.inventory.value[this.hold.index] = this.hold.item;
-				this.player.inventory.switch(this.hold.index, this.select);
-			}
-		}
-		this.select = null;
-		this.hold = null;
-		return value;
-	}
-}
-
-*/
-
-
-
 class PlayerUI {
 	
 	static get PROPERTIES() {
@@ -252,6 +38,8 @@ class PlayerUI {
 		this.focus = false;
 		this.select = null;
 		this.hold = null;
+
+		this.blob = null;
 	}
 
 
@@ -333,14 +121,23 @@ class PlayerUI {
 		push();
 		fill(255);
 		noStroke();
-		textAlign(RIGHT);
+		textAlign(RIGHT, CENTER);
 		textSize(this.block.size / 5)
-		text(value, x + this.block.size / 2 - 4, y + this.block.size / 2 - 4);
+		text(value, x + this.block.size / 2 - 4, y + this.block.size / 2 - 8);
 		pop();
 	}
 
 
 	draw() {
+
+		if (this.blob) {
+			if (this.blob.current < this.blob.final + this.blob.delay) {
+				this._delayBlob();
+			} else {
+				this.clearDelayBlob();
+			}
+		}
+
 		let length = this.player.inventory.maxBar;
 		let X, Y, index;
 		this.select = null;
@@ -427,9 +224,133 @@ class PlayerUI {
 
 		return value;
 	}
+
+
+	drawStats() {
+		const spacing = 0;
+		const borderWidth = 220;
+		const borderHeight = 120;
+		const innerSpacing = 8;
+		const iconsGap = 24;
+		push();
+		translate(width - borderWidth - spacing, height - borderHeight - spacing);
+		fill(100, 100, 100, 140);
+		noStroke();
+		rect(0, 0, borderWidth, borderHeight);
+		imageMode(CENTER);
+		textAlign(CENTER, CENTER);
+		textSize(20);
+
+		const STATS = [
+			{
+				name : "health",
+				color : [137, 210, 50]
+			},
+			{
+				name : "thirst",
+				color : [68, 151, 211]
+			},
+			{
+				name : "hunger",
+				color : [220, 111, 50]
+			}
+		];
+		const gap = (borderHeight - (innerSpacing * (STATS.length + 1))) / STATS.length;
+		for (let i = 0; i < STATS.length; i++) {
+			noStroke();
+			image(
+				ICONS[STATS[i].name],
+				(iconsGap + innerSpacing) / 2,
+				innerSpacing + (innerSpacing + gap) * i + (gap / 2),
+				gap,
+				gap
+			);
+
+			const $x = innerSpacing + iconsGap,
+			$y = innerSpacing + (innerSpacing + gap) * i,
+			$width = borderWidth - (innerSpacing * 2) - iconsGap;
+
+			fill(0, 0, 0, 120);
+			rect(
+				$x,
+				$y,
+				$width,
+				gap
+			);
+			const maximum = assets.Player.STATUS.maximum[STATS[i].name]
+			const value = Math.min(Math.max(this.player.status[STATS[i].name], 0), maximum);
+			fill(
+				...STATS[i].color,
+				255
+			);
+			const length = map(value, 0, maximum, 0, $width);
+			//fill(255, 255, 255, 220);
+			rect(
+				$x,
+				$y,
+				length,
+				gap
+			);
+			
+			fill(255);
+			text(
+				value.toFixed(0),
+				$x + ($width / 2),
+				innerSpacing / 4 + $y + (gap) / 2
+			);			
+		}
+
+		pop();
+
+	}
+
+
+	get BLOB_PROPERTIES() {
+		return {
+			radius : 80
+		}
+	}
+
+	setDelayBlob(delay) {
+		this.blob = {
+			final : Date.now(),
+			current : Date.now(),
+			delay : delay
+		};
+	}
+
+	_delayBlob() {
+		this.blob.current = Date.now();
+		const value = Math.max(this.blob.final + this.blob.delay - this.blob.current, 0);
+		push();
+		translate(width / 2, (height / 2) - 150);
+		noStroke(0);
+		fill(100, 100, 100, 100);
+		ellipse(0, 0, this.BLOB_PROPERTIES.radius);
+		noFill();
+		stroke(255);
+		const arcValue = map(value, 0, this.blob.delay, 0, TWO_PI);
+		push();
+		strokeWeight(5);
+		strokeCap(SQUARE);
+		scale(1, -1);
+		arc(0, 0, this.BLOB_PROPERTIES.radius, this.BLOB_PROPERTIES.radius, arcValue + HALF_PI, HALF_PI);
+		pop();
+
+		fill(255);
+		noStroke();
+		textAlign(CENTER, CENTER);
+		const seconds = value / 1000.0;
+		textSize(this.BLOB_PROPERTIES.radius / 4);
+		text(seconds.toFixed(1), 0, 0);
+
+		pop();
+	}
+
+	clearDelayBlob() {
+		this.blob = null;
+	}
 }
-
-
 
 
 function drawBackground() {
@@ -454,22 +375,47 @@ function drawBackground() {
 }
 
 
-function drawStats() {
-	return;
-	const gap = width/3;
-	const length = width - gap*2;
-	const barHeight = 30;
-	const radius = 0;
-	const hp = Math.max(map(player.health, 0, 100, 0, length), 0);
-	const color = map(player.health, 0, 100, 0, 255);
 
+
+
+function drawInfo() {
+	const borderSize = 80;
+	const spacing = 10;
+
+	// Players counter
 	push();
+	translate(spacing, height - borderSize - spacing);
 	noStroke();
-	fill(255, color, color);
-	rect(gap, height-(barHeight*1.6), hp, barHeight, radius);
-	noFill();
-	stroke(0);
-	strokeWeight(2);
-	rect(gap, height-(barHeight*1.6), length, barHeight, radius);
+	fill(60, 60, 60, 150)
+	rect(0, 0, borderSize, borderSize, 30);
+	textAlign(CENTER, CENTER);
+	textSize(borderSize / 3);
+	fill(255);
+	text((players.length + 1).toString(), borderSize / 2, borderSize / 2);
+	pop();
+
+	// Timer
+	push();
+	translate(width / 2,0);
+	noStroke();
+	fill(90, 90, 90, 150)
+	rect(-borderSize, 0, borderSize * 2, borderSize / 2, 30);
+	textAlign(CENTER, CENTER);
+	textSize(borderSize / 3);
+	fill(255);
+	text(msToTime(game.timer), 0, borderSize / 4);
+	pop();
+
+	// Player's position and current frame rate
+	push();
+	translate(width - 20, 30);
+	textAlign(RIGHT, CENTER);
+	textSize(20);
+	fill(255);
+	text(`X: ${player.position.x.toFixed(0)} Y: ${player.position.y.toFixed(0)}`, 0, 0);
+	fill(255);
+	translate(-width + 30, 0);
+	textAlign(LEFT, CENTER);
+	text(`Fps : ${floor(game.fps)}`, 0, 0);
 	pop();
 }

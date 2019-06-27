@@ -1,6 +1,6 @@
 {
   "defaultPlayerColor" : {
-    "stroke" : [0, 0, 0],
-    "body" : [252, 200, 117]
+    "stroke" : [0, 0, 0, 180],
+    "body" : [255,173,96]
   }
 }

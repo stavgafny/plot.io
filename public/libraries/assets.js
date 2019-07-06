@@ -2,7 +2,9 @@
 
 class Item {
 
-    static get DEFAULT_STACK() { return 32; }
+    static get DEFAULT_STACK() { return 10; }
+
+    static get BLOB_RADIUS() { return 38; }
 
     static valid(object) { return object instanceof Item; }
 
@@ -25,10 +27,27 @@ class Item {
             value : this.value
         };
     }
+
+    get clone() {
+        return Object.assign( Object.create( Object.getPrototypeOf(this)), this);
+    }
+
+    createBlob(position) {
+        const blob = new Body(position, Item.BLOB_RADIUS);
+        return blob;
+    }
 }
 
 
 class Storage {
+
+    static get MODES() {
+        return {
+            all : 0,
+            half : 1,
+            one : 2
+        };
+    }
 
     constructor(maxStorage) {
         this.maxStorage = maxStorage;
@@ -38,60 +57,147 @@ class Storage {
 
     get maxCapacity() { return this.maxStorage; }
 
+    get full() {
+        for (let i = 0; i < this.maxCapacity; i++) {
+            if (!Item.valid(this.storage[i])) {
+                return false;
+            } else if (this.storage[i].amount < this.storage[i].maxAmount) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     setStorage(inventory) {
         this.storage = inventory;
     }
 
     insert(item) {
+        const slots = [];
         if (!Item.valid(item)) {
-            return null;
+            return slots;
+        }
+
+        if (item.amount !== null) {
+            for (let i = 0; i < this.maxCapacity; i++) {
+                if (this.storage[i]) {
+                    if (this.storage[i].id === item.id && this.storage[i].amount < this.storage[i].maxAmount) {
+                        const fetched = Math.min((this.storage[i].maxAmount - this.storage[i].amount), item.amount);
+                        this.storage[i].amount += fetched;
+                        item.amount -= fetched;
+                        slots.push(i);
+                        if (item.amount <= 0) {
+                            return slots;
+                        }
+                    }
+                }
+            }
         }
         for (let i = 0; i < this.maxCapacity; i++) {
             if (!this.storage[i]) {
                 this.storage[i] = item;
-                return i;
+                slots.push(i);
+                return slots;
             }
         }
-        return -1;
+
+        return slots;
     }
 
     _swap(source, target = null) {
-        // Returns true only if item was dropped
+        // Returns item only if it was dropped
         let item = this.storage[source];
         this.storage[source] = this.storage[target];
         if (target >= 0 && target < this.maxCapacity && target !== null) {
             this.storage[target] = item;
-            return false;
+            return null;
         }
-        return true;
+        return item;
     }
 
     _combine(source, target) {
         const item1 = this.storage[source];
         const item2 = this.storage[target];
-        if (item2.amount < item2.maxAmount) {
-            const fetched = Math.min((item2.maxAmount - item2.amount), item1.amount);
-            item2.amount += fetched;
-            item1.amount -= fetched;
-            if (item1.amount <= 0) {
-                this.removeItemByIndex(source);
-            }
+        const fetched = Math.min((item2.maxAmount - item2.amount), item1.amount);
+        item2.amount += fetched;
+        item1.amount -= fetched;
+        if (item1.amount <= 0) {
+            this.removeItemByIndex(source);
         }
+        
     }
 
-    change(source, target) {
+    change(source, target, mode = Storage.MODES.all) {
         // gets two items in inventory by their given index (input).
         // combines if they are the same items else tries to swap or drop.
         const item1 = this.storage[source];
         const item2 = this.storage[target];
-        if (item1 && item2) {
-            if (item1.id === item2.id) {
-                this._combine(source, target);
-                return false;
+        if (!item1) {
+            return null;
+        }
+
+        if (mode === Storage.MODES.all) {
+            if (item1 && item2) {
+                if (item1.id === item2.id && item1.amount !== null) {
+                    this._combine(source, target);
+                    return null;
+                }
+            }
+        } else {
+            let modelable = false;
+            if (item1.amount > 0) {
+                if (item2) {
+                    if (item2.id === item1.id) {
+                        modelable = true
+                    }
+                } else {
+                    modelable = true;
+                }
+            }
+
+            if (modelable) {
+                const clone = item1.clone;
+                if (mode === Storage.MODES.half) {
+                    const amount = item1.amount / 2.0;
+                    item1.amount = Math.round(amount);
+                    clone.amount = Math.floor(amount);
+                } else if (mode === Storage.MODES.one) {
+                    item1.amount--;
+                    clone.amount = 1;
+                } else {
+                    return null;
+                }
+
+                let dropped = false;
+
+                if (!item2) {        
+                    if (clone.amount <= 0) {
+                        clone.amount = item1.amount;
+                        this.removeItemByIndex(source);
+                    }
+                    if (target >= 0) {
+                        this.storage[target] = clone;
+                    } else {
+                        dropped = true;
+                    }
+                } else {
+                    this.storage[source] = clone;
+                    this._combine(source, target);
+                    this.storage[source] = item1;
+                    item1.amount += clone.amount; // Leftovers
+                }
+                
+                if (item1.amount <= 0) {
+                    this.removeItemByIndex(source);
+                }
+
+                if (dropped) {
+                    return clone;
+                }
+                return null;
             }
         }
         return this._swap(source, target);
-
     }
 
     getIndexByInstance(item) {
@@ -114,7 +220,7 @@ class Storage {
     }
 
     removeItemByIndex(index) {
-        if (index > 0 && index < this.maxCapacity) {
+        if (index >= 0 && index < this.maxCapacity) {
             return delete this.storage[index];
         }
         return false;
@@ -158,12 +264,14 @@ class Body {
     }
 }
 
+
 class Ammo extends Item {
     constructor(name, maxAmount, amount) {
         super(name, false, maxAmount);
         this.amount = amount;
     }
 }
+
 
 class Bullet extends Body {
 
@@ -251,7 +359,7 @@ class Weapon extends Item {
 
 
     update(deltaTime=1) {
-        this.currentPulse = Math.min(Math.max(this.currentPulse - ((this.pulse / 10)*deltaTime), 0), this.pulse);
+        this.currentPulse = Math.min(Math.max(this.currentPulse - ((this.pulse / 0.18)*deltaTime), 0), this.pulse);
     }
 };
 
@@ -281,8 +389,8 @@ class Weapon extends Item {
                 },
                 decrement : {
 					health : 1.5,
-                    thirst : 0.012,
-                    hunger : 0.0237
+                    thirst : 0.72,
+                    hunger : 1.422
                 }
             };
         }
@@ -308,7 +416,7 @@ class Weapon extends Item {
                 range: this.radius * 1.2,
                 delay: 350,
                 dist: this.radius * .65,
-                radius: this.radius * .28,
+                radius: this.radius * .295,
                 hitBox: false,
                 side: 0
             };
@@ -413,6 +521,22 @@ class Weapon extends Item {
         }
 
     };
+    
+
+    exports.Wood = class extends Item {
+        constructor(amount = 1) {
+            super("Wood", false, Item.DEFAULT_STACK);
+            this.amount = amount;
+        }
+    }
+
+
+    exports.Stone = class extends Item {
+        constructor(amount = 1) {
+            super("Stone", false, Item.DEFAULT_STACK);
+            this.amount = amount;
+        }
+    }
 
 
     exports.A9MM = class extends Ammo {
@@ -420,7 +544,7 @@ class Weapon extends Item {
         static get RADIUS() { return 4; }
         
         constructor(amount = 1) {
-            super("9mm", Item.DEFAULT_STACK, amount);
+            super("9mm", 32, amount);
         }
     };
 
@@ -430,7 +554,7 @@ class Weapon extends Item {
         static get RADIUS() { return 5; }
         
         constructor(amount = 1) {
-            super("5.56", Item.DEFAULT_STACK, amount);
+            super("5.56", 32, amount);
         }
     };
 
@@ -440,7 +564,7 @@ class Weapon extends Item {
         static get RADIUS() { return 5; }
         
         constructor(amount = 1) {
-            super("7.62", Item.DEFAULT_STACK, amount);
+            super("7.62", 32, amount);
         }
     };
 
@@ -451,11 +575,11 @@ class Weapon extends Item {
             return {
                 name : "M9",
                 fireRate : 94,
-                velocity : 21.3,
+                velocity : 1278,
                 damage : 14,
                 recoil : 0.4,
-                range : 65,
-                pulse : 0.4,
+                range : 1.08,
+                pulse : 0.45,
                 isAuto : false,
                 size : {
                     width : 1,
@@ -480,10 +604,10 @@ class Weapon extends Item {
             return {
                 name : "M4",
                 fireRate : 70,
-                velocity : 24.8,
+                velocity : 1288,
                 damage : 14,
                 recoil : 0.4,
-                range : 80,
+                range : 1.25,
                 pulse : 0.5,
                 isAuto : true,
                 size : {
@@ -509,11 +633,11 @@ class Weapon extends Item {
             return {
                 name : "AK-47",
                 fireRate : 100,
-                velocity : 22.2,
+                velocity : 1332,
                 damage : 20,
                 recoil : 0.195,
-                range : 120,
-                pulse : 0.6,
+                range : 2.05,
+                pulse : 0.55,
                 isAuto : true,
                 size : {
                     width : 2.2,

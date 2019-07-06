@@ -5,20 +5,6 @@ const socketEngine = require('socket.io');
 const gameEngine = require('./gameEngine.js');
 const assets = gameEngine.assets;
 
-const COLORS = {
-	fg : {
-		black : "\x1b[30m",
-		white : "\x1b[0m",
-		red : "\x1b[31m",
-		green : "\x1b[32m"
-	},
-
-	bg : {
-		black : "\x1b[40m",
-		white : "\x1b[47m"
-	}
-};
-
 
 const PORT = 80;
 const GET = "/?game=";
@@ -58,7 +44,6 @@ function getRandomRoom() {
 }
 
 const handleConnection = socket => {
-	console.log(COLORS.fg.green, `[+]${socket.id}`, COLORS.bg.black, COLORS.fg.white);
 	
 	// client full url
 	const get = socket.handshake.headers.referer;
@@ -86,28 +71,28 @@ const handleConnection = socket => {
 
 	// Adds the player to the room and handles all of his future requests
 	room.addPlayer(socket);
-
-	// Handle player disconnection
-	socket.on("disconnect", () => {
-		console.log(COLORS.fg.red, `[-]${socket.id}`, COLORS.bg.black, COLORS.fg.white);
-	});
 }
 
 io.sockets.on("connection", handleConnection);
 
-
 rooms.push(
 	new gameEngine.Room("1", "FFA", {
-		showHealth : false,
-		startInventory : [
-			new assets.M4(12),
-			new assets.A556(30),
-			new assets.A556(30),
-			new assets.A9MM(30)
-		]
+		config : {
+			showHealth : false,
+			startInventory : [
+				new assets.Wood(3),
+				new assets.Wood(10),
+				new assets.Wood(3),
+			]
+		},
+		settings : {
+			checkPhysicsCutOff : 5
+		}
 	})
 );
 
+rooms[0].run();
+/*
 
 rooms.push(
 	new gameEngine.BATTLE_ROYALE("1", {
@@ -127,3 +112,5 @@ rooms.push(
 
 rooms[0].run();
 rooms[1].run();
+
+*/

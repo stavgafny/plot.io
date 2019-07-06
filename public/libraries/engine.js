@@ -15,6 +15,7 @@ const toAngle = (target, position) => {
 }
 
 const msToTime = duration => {
+	duration *= 1000;
     let seconds = parseInt((duration / 1000) % 60),
 		minutes = parseInt((duration / (1000 * 60)) % 60),
 		hours = parseInt((duration/(1000 * 60 * 60)) % 24);
@@ -24,4 +25,16 @@ const msToTime = duration => {
     seconds = (seconds < 10) ? "0" + seconds : seconds;
 
     return hours + ":" + minutes + ":" + seconds;
+}
+
+const itemToValueFormat = item => {
+	let value = "";
+	if (item.amount > 1) {
+		value = "x" + item.value.toString();
+	} else {
+		if (item.type === "Weapon") {
+			value = item.value.toString();
+		}
+	}
+	return value;
 }

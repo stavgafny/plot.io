@@ -2,7 +2,7 @@ const fs = require('fs');
 exports.assets = require('./public/libraries/assets.js');
 exports.io = null;
 
-const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+const CONFIG = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
 
 const getInstanceById = id => {
@@ -22,6 +22,15 @@ const stringifyItem = (inventory, index = null) => {
 	return item;
 }
 
+const objectifyItem = template => {
+	if (template) {
+		let object = getInstanceById(template.id);
+		if (object) {
+			return new object(template.value);
+		}
+	}
+	return undefined;
+}
 
 const stringifyInventory = inventory => {
 	const stringifiedInventory = [];
@@ -32,6 +41,15 @@ const stringifyInventory = inventory => {
 		}
 	}
 	return stringifiedInventory;
+}
+
+
+const stringifyItemBlob = itemBlob => {
+	return {
+		id : itemBlob.id,
+		item : itemBlob.item.id,
+		position : itemBlob.position
+	};
 }
 
 
@@ -48,7 +66,7 @@ const stringifyBullet = bullet => {
 };
 
 
-const stringifyPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealth) => {
+const stringifyPlayer = (player, showHealth = Core.DEFAULT_ROOM_PROPERTIES.config.showHealth) => {
 	let p = {
 		position: player.position,
 		radius: player.radius,
@@ -75,29 +93,51 @@ const stringifyPlayer = (player, showHealth = Core.DEFAULT_ROOM.config.showHealt
 
 class Core {
 
-	static get DEFAULT_ROOM() {
+	static get DEFAULT_ROOM_PROPERTIES() {
 		return {
 			config: {
 				status: exports.assets.Player.STATUS.default,
 				radius: 30,
-				speed: 3.6,
+				speed: 210,
 				startInventory: [],
 				maxPlayers: 10,
-				defaultPlayerColor: config.defaultPlayerColor,
+				defaultPlayerColor: CONFIG.DEFAULT_PLAYER_COLOR,
 				playerFistDamage: 20,
+				playerStepCounter : 0.45,
 				showHealth: false
 			},
 			map: {
 				size: 500
 			},
+			settings : {
+				tick : CONFIG.TICK,
+				checkPhysicsIteration : 250,
+				checkPhysicsCutOff : 2.5, // percentage if above or equal >>> 250%
+				checkPhysicsPrintDelay : 2000,
+			},
+
+			onConnection : function(socket = null) {
+				console.log(`<${this.stringify}>  [+]${socket.id}`);
+			},
+			onDisconnection : function(socket = null) {
+				console.log(`<${this.stringify}>  [-]${socket.id}`);
+			},
+			onPhysicsDelay : function(ms) {
+				console.log(`<${this.stringify}>  [~]Running ${ms - this.settings.tick}ms behind!`);
+			}
 		};
 	}
 
-	constructor(name, mode, config, map)  {
+	constructor(name, mode, properties)  {
 		this.name = name;
 		this.mode = mode;
-		this.config = Object.assign({}, Core.DEFAULT_ROOM.config, config);
-		this.map = Object.assign({}, Core.DEFAULT_ROOM.map, map);
+		this.config	= Object.assign({}, Core.DEFAULT_ROOM_PROPERTIES.config, properties.config);
+		this.map = Object.assign({}, Core.DEFAULT_ROOM_PROPERTIES.map, properties.map);
+		this.settings = Object.assign({}, Core.DEFAULT_ROOM_PROPERTIES.settings, properties.settings);
+		this.onConnection = properties.onConnection ? properties.onConnection : Core.DEFAULT_ROOM_PROPERTIES.onConnection;
+		this.onDisconnection = properties.onDisconnection ? properties.onDisconnection : Core.DEFAULT_ROOM_PROPERTIES.onDisconnection;
+		this.onPhysicsDelay = properties.onPhysicsDelay ? properties.onPhysicsDelay : Core.DEFAULT_ROOM_PROPERTIES.onPhysicsDelay;
+
 	}
 
 	get stringify() { return `${this.mode}:${this.name}`; }
@@ -106,6 +146,12 @@ class Core {
 
 	get newPlayerInventory() {
 		let inventory = [];
+		for (let item of this.config.startInventory) {
+			inventory.push(item.clone);
+		}
+		return inventory;
+		
+		/*
 		try {
 			for (let item of this.config.startInventory) {
 				if (item) {
@@ -121,6 +167,8 @@ class Core {
 		finally {
 			return inventory;
 		}
+		*/
+
 	}
 	
 	_updatePlayer(player) {
@@ -130,8 +178,8 @@ class Core {
 			return;
 		}
 		player.steps += player.axis.x || player.axis.y ? player.speed * this.deltaTime : 0;
-		if (player.steps > player.speed * 25) { // 25 = PLAYERSTEPS -> CONFIG<config>
-			player.steps -= player.speed * 25;
+		if (player.steps > player.speed * this.config.playerStepCounter) { // 25 = PLAYERSTEPS -> CONFIG<config>
+			player.steps -= player.speed * this.config.playerStepCounter;
 			this.broadcast.emit("walk", player.id);
 		}
 
@@ -154,23 +202,44 @@ class Core {
 
 exports.Room = class extends Core {
 
-	static get FIXED_DELTATIME() { return 60; }
+	constructor(name, mode, properties) {
+		super(name, mode, properties);
+		this.worker = null;
+		this.roomCheck = null;
 
-	static get TICK() { return 30; }
-
-	constructor(name, mode, config = {}, map = {}) {
-		super(name, mode, config, map);
 		this.players = [];
 		this.bullets = [];
-		this.worker = null;
+		this.items = [];
 		this.deltaTime = 1;
-		this.counter = 0;
+		this.playerCounter = 0;
+		this.itemCounter = 0;
 	}
 
 	get running() { return this.worker !== null; }
 
 	stop() {
 		clearInterval(this.worker);
+		clearInterval(this.roomCheck);
+		this.worker = null;
+		this.roomCheck = null;
+	}
+
+	getItemIndexNearPlayer(player) {
+		for (let i = 0; i < this.items.length; i++) {
+			if (player.collide(this.items[i])) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	createItemBlob(item, position) {
+		const itemBlob = item.createBlob(position);
+		itemBlob.id = this.itemCounter++;
+		itemBlob.item = objectifyItem(item.stringify);
+		this.items.push(itemBlob);
+		this.broadcast.emit("item", stringifyItemBlob(itemBlob));
+		return itemBlob;
 	}
 
 	killPlayer(player) {
@@ -349,10 +418,17 @@ exports.Room = class extends Core {
 		});
 
 		socket.on("changeInventory", data => {
+			if (!(data.source >= 0)) {
+				return;
+			}
+
 			let currentSlot = player.inventory.currentSlot;
-			player.inventory.change(data.source, data.target);
+			const dropped = player.inventory.change(data.source, data.target, data.mode);
 			player.currentSlot = player.inventory.currentSlot;
 			const slots = [data.source, data.target];
+			if (dropped) {
+				this.createItemBlob(dropped, player.getPosition());
+			}
 			
 			for (let index of slots) {
 
@@ -387,8 +463,66 @@ exports.Room = class extends Core {
 			socket.broadcast.emit("changeSlot", data);
 
 		});
+
+		socket.on("pickUp", () => {
+			if (player.inventory.full) {
+				return;
+			}
+
+			const itemIndex = this.getItemIndexNearPlayer(player);
+			if (itemIndex === -1) {
+				return;
+			}
+			const itemBlob = this.items[itemIndex];
+			const inserted = player.inventory.insert(itemBlob.item);
+			if (inserted.length > 0) {
+				const lastInsertedItem = player.inventory.storage[inserted[inserted.length - 1]];
+				if (lastInsertedItem === itemBlob.item || itemBlob.item.amount <= 0) {
+					this.items.splice(itemIndex, 1);
+					this.broadcast.emit("discardItem", itemBlob.id);
+				}
+
+				inserted.forEach(index => {
+					const slot = stringifyItem(player.inventory.storage, index);
+					socket.emit("slot", slot);
+					
+					if (player.inventory.barIndex === index) {
+						player.currentSlot = player.inventory.currentSlot;
+						let data = {
+							id : player.id,
+							currentSlot : player.inventory.currentSlot.id
+						};
+						socket.broadcast.emit("changeSlot", data);
+					}
+				});
+			}
+		});
+
+		socket.on("drop", () => {
+			if (!player.currentSlot) {
+				return;
+			}
+			const dropped = player.currentSlot;
+			if (!dropped) {
+				return;
+			}
+			const blob = this.createItemBlob(dropped, player.getPosition());
+			if (blob.item.amount > 1) {
+				blob.item.amount = 1;
+				player.inventory.currentSlot.amount--;
+			} else {
+				player.inventory.storage[player.inventory.barIndex] = undefined;
+			}
+			player.currentSlot = player.inventory.currentSlot;
+			const slot = stringifyItem(player.inventory.storage, player.inventory.barIndex);
+			socket.emit("slot", slot);
+
+			let data = { id : player.id };
+			socket.broadcast.emit("changeSlot", data);
+		});
 	
 		socket.on("disconnect", () => {
+			this.onDisconnection(socket);
 			this.removePlayer(player);
 			return;
 		});
@@ -398,6 +532,7 @@ exports.Room = class extends Core {
 		if (socket === null) {
 			return;
 		}
+		this.onConnection(socket);
 		const position = {
 			x : Math.floor(Math.random() * this.map.size),
 			y : Math.floor(Math.random() * this.map.size)
@@ -411,7 +546,7 @@ exports.Room = class extends Core {
 			this.newPlayerInventory
 		);
 
-		player.id = this.counter++;
+		player.id = this.playerCounter++;
 		player.socket = socket;
 		player.hold = false;
 		player.action = null;
@@ -435,6 +570,9 @@ exports.Room = class extends Core {
 		this.bullets.forEach(b => {
 			socket.emit("bullet", stringifyBullet(b));
 		});
+		this.items.forEach(i => {
+			socket.emit("item", stringifyItemBlob(i));
+		});
 
 		this.players.push(player);
 		socket.join(this.stringify);
@@ -445,7 +583,6 @@ exports.Room = class extends Core {
 	run() {
 		let lastLoop = Date.now();
 		this.worker = setInterval(() => {
-			let thisLoop = Date.now();
 			for (let i = 0; i < this.players.length; i++) {
 				let player = this.players[i];
 				if (player) {
@@ -474,12 +611,31 @@ exports.Room = class extends Core {
 					}
 				}
 			}
-			this.deltaTime = exports.Room.FIXED_DELTATIME / (1000 / (thisLoop - lastLoop));
+			let thisLoop = Date.now();
+			this.deltaTime = (thisLoop - lastLoop) / 1000.0;
 			lastLoop = thisLoop;
-		}, 1000 / exports.Room.TICK);
+		}, 1000.0 / this.settings.tick);
+
+		const FIXED_CUT_OFF = (1 / this.settings.tick) * this.settings.checkPhysicsCutOff;
+		let ready = true;
+		this.roomCheck = setInterval(() => {
+			if (!ready) {
+				return;
+			}
+
+			if (this.deltaTime >= FIXED_CUT_OFF) {
+				this.onPhysicsDelay(this.deltaTime * 1000);
+				ready = false;
+				setTimeout(() => {
+					ready = true;
+				}, this.settings.checkPhysicsPrintDelay);
+			}
+		}, this.settings.checkPhysicsIteration);
 	}
 }
 
+
+/*
 
 exports.BATTLE_ROYALE = class extends exports.Room {
 	
@@ -592,3 +748,5 @@ exports.BATTLE_ROYALE = class extends exports.Room {
 		}
 	}
 }
+
+*/

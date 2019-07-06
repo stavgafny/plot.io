@@ -1,6 +1,7 @@
 {
-  "defaultPlayerColor" : {
+  "TICK" : 30,
+  "DEFAULT_PLAYER_COLOR" : {
     "stroke" : [0, 0, 0, 180],
-    "body" : [255,173,96]
+    "body" : [255,150,110]
   }
 }

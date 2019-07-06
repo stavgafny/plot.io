@@ -28,6 +28,12 @@ class PlayerUI {
 		};
 	}
 
+	static get INFO() {
+		return {
+			pickUp : "Press [E] to pick up"
+		};
+	}
+
 
 	constructor(player) {
 		this.player = player;
@@ -108,27 +114,32 @@ class PlayerUI {
 		}
 		const icon = ICONS[slot.name] ? ICONS[slot.name] : ICONS['none'];
 		image(icon, x, y, this.block.size, this.block.size);
-		
-		let value = "";
-		if (slot.amount > 1) {
-			value = "x" + slot.value.toString();
-		} else {
-			if (slot.type === "Weapon") {
-				value = slot.value.toString();
-			}
-		}
+
+		const textValue = itemToValueFormat(slot);
 
 		push();
 		fill(255);
 		noStroke();
 		textAlign(RIGHT, CENTER);
 		textSize(this.block.size / 5)
-		text(value, x + this.block.size / 2 - 4, y + this.block.size / 2 - 8);
+		text(textValue, x + this.block.size / 2 - 4, y + this.block.size / 2 - 8);
 		pop();
 	}
 
 
-	draw() {
+	draw(grabbableItem = null) {
+
+
+		if (grabbableItem && !this.focus) {
+			push();
+			translate(width / 2, height / 1.5);
+			textAlign(CENTER, CENTER);
+			textSize(20);
+			fill(255);
+			noStroke();
+			text(`${PlayerUI.INFO.pickUp} ${grabbableItem.name}`, 0, 0);
+			pop();	
+		}
 
 		if (this.blob) {
 			if (this.blob.current < this.blob.final + this.blob.delay) {
@@ -188,23 +199,36 @@ class PlayerUI {
 			}
 		}
 		if (this.hold !== null) {
+			const item = this.player.inventory.storage[this.hold.index];
+			this.player.inventory.storage[this.hold.index] = this.hold.item;
 			this._block(
 				mouseX,
 				mouseY,
-				this.hold,
+				this.hold.index,
 				false,
 				true
 			);
+			this.player.inventory.storage[this.hold.index] = item;
 		}
-
 		pop();
 	}
 
 
-	mousePressed() {
-		if (this.select !== null) {
-			this.hold = this.select
+	mousePressed(mode = 0) {
+		if (this.select === null) {
+			return;
 		}
+		this.hold = {
+			index : this.select,
+			item : this.player.inventory.storage[this.select].clone
+		}
+
+		if (mode === Storage.MODES.half) {
+			this.hold.item.amount = Math.floor(this.hold.item.amount / 2.0);
+		} else if (mode === Storage.MODES.one) {
+			this.hold.item.amount = 1;
+		}
+
 	}
 	
 	
@@ -213,7 +237,7 @@ class PlayerUI {
 			return null;
 		}
 		const value = {
-			source : this.hold
+			source : this.hold.index
 		};
 
 		if (this.select !== null) {
@@ -226,7 +250,7 @@ class PlayerUI {
 	}
 
 
-	drawStats() {
+	drawStatus() {
 		const spacing = 0;
 		const borderWidth = 220;
 		const borderHeight = 120;
@@ -241,7 +265,7 @@ class PlayerUI {
 		textAlign(CENTER, CENTER);
 		textSize(20);
 
-		const STATS = [
+		const STATUS = [
 			{
 				name : "health",
 				color : [137, 210, 50]
@@ -255,11 +279,11 @@ class PlayerUI {
 				color : [220, 111, 50]
 			}
 		];
-		const gap = (borderHeight - (innerSpacing * (STATS.length + 1))) / STATS.length;
-		for (let i = 0; i < STATS.length; i++) {
+		const gap = (borderHeight - (innerSpacing * (STATUS.length + 1))) / STATUS.length;
+		for (let i = 0; i < STATUS.length; i++) {
 			noStroke();
 			image(
-				ICONS[STATS[i].name],
+				ICONS[STATUS[i].name],
 				(iconsGap + innerSpacing) / 2,
 				innerSpacing + (innerSpacing + gap) * i + (gap / 2),
 				gap,
@@ -277,10 +301,10 @@ class PlayerUI {
 				$width,
 				gap
 			);
-			const maximum = assets.Player.STATUS.maximum[STATS[i].name]
-			const value = Math.min(Math.max(this.player.status[STATS[i].name], 0), maximum);
+			const maximum = assets.Player.STATUS.maximum[STATUS[i].name]
+			const value = Math.min(Math.max(this.player.status[STATUS[i].name], 0), maximum);
 			fill(
-				...STATS[i].color,
+				...STATUS[i].color,
 				255
 			);
 			const length = map(value, 0, maximum, 0, $width);
@@ -396,7 +420,7 @@ function drawInfo() {
 
 	// Timer
 	push();
-	translate(width / 2,0);
+	translate(width / 2, 0);
 	noStroke();
 	fill(90, 90, 90, 150)
 	rect(-borderSize, 0, borderSize * 2, borderSize / 2, 30);
@@ -417,5 +441,38 @@ function drawInfo() {
 	translate(-width + 30, 0);
 	textAlign(LEFT, CENTER);
 	text(`Fps : ${floor(game.fps)}`, 0, 0);
+	pop();
+}
+
+
+function drawStatus() {
+	push();
+	background(STATUS.background);
+	translate(width / 2, height / 2);
+	fill(255);
+	noStroke();
+	textSize(20);
+	textAlign(CENTER, CENTER);
+	if (typeof game.status === "string") {
+		let textValue = game.status;
+		if (game.mode === MODES.battleRoyale) {
+
+			if (game.status === STATUS.queue) {
+				textValue += `\nQueue: ${game.currentPlayers}/${game.maxPlayers}`;
+			}
+			else if (game.status === STATUS.dead) {
+				textValue += `\nYour rank is #${(players.length + 1).toString()}`;
+			}
+			else if (game.status === STATUS.won) {
+
+			}
+
+		}
+
+		text(textValue, 0, 0);
+
+
+		//button("asd", 0, 0);
+	}
 	pop();
 }

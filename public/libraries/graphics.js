@@ -41,6 +41,8 @@ function preload() {
 		'health' : loadImage('assets/health.png'),
 		'thirst' : loadImage('assets/thirst.png'),
 		'hunger' : loadImage('assets/hunger.png'),
+		'Wood' : loadImage('assets/wood.png'),
+		'Stone' : loadImage('assets/stone.png'),
 		'9mm' : loadImage('assets/9mm.png'),
 		'5.56' : loadImage('assets/5.56.png'),
 		'7.62' : loadImage('assets/7.62.png'),
@@ -91,7 +93,8 @@ function preload() {
 				launch : 0,
 				angle : .6,
 				speed : 0,
-				handStroke : 2
+				handStroke : 2,
+				animation : 18
 			};
 		};
 
@@ -162,7 +165,7 @@ function preload() {
 
 		punch(side=Math.round(Math.random())) {
 			this.fist.launch = 0;
-			this.fist.speed = this.fist.range / 4;
+			this.fist.speed = this.fist.range * this.fist.animation;
 			setTimeout(() => {
 				this.fist.launch = this.fist.range;
 				this.fist.speed *= -.5;
@@ -294,21 +297,17 @@ function preload() {
 		static get MAX_COLOR() { return 1; }
 		static get MIN_COLOR() { return 0; }
 
-		static getMaxRay(speed) {
-			return speed / 1.2;
-		}
-
 		constructor(position, radius, velocity, range, damage, drag, color) {
 			super(position, radius, velocity, range, damage, drag);
 			this.color = color;
 			this.ray = 0;
 			this.fixedRange = range;
-			this.maxRay = graphics.Bullet.getMaxRay(this.speed);
 			this.angle = Math.atan2(-this.velocity.y, -this.velocity.x);
 		}
 
 		get speed() { return dist(0, 0, this.velocity.x, this.velocity.y); }
 
+		get maxRay() { return 0.25 }
 
 		draw() {
 			let e = fixedCamera(this.position);
@@ -335,10 +334,41 @@ function preload() {
 
 
 		update(deltaTime) {
+			console.log(this.maxRay);
 			super.update(deltaTime);
 			if (this.ray < this.maxRay) {
 				this.ray = Math.min(this.ray + (1 * deltaTime), this.maxRay);
 			}
+		}
+	};
+
+
+	graphics.ItemBlob = class extends Body {
+
+		static get PROPERTIES() {
+			return {
+				color : [80, 80, 80, 160]
+			};
+		}
+
+		constructor(item, position) {
+			super(position, item.createBlob().radius);
+			this.name = item.name;
+			this.color = graphics.ItemBlob.PROPERTIES.color
+		}
+		
+		draw () {
+			let e = fixedCamera(this.position);
+			push();
+			translate(e.x, e.y);
+			fill(this.color);
+			stroke(0);
+			strokeWeight(2);
+			ellipse(0, 0, this.radius * 2);
+			imageMode(CENTER);
+			const icon = ICONS[this.name] ? ICONS[this.name] : ICONS['none'];
+			image(icon, 0, 0, this.radius * 1.5, this.radius * 1.5);
+			pop();
 		}
 	};
 

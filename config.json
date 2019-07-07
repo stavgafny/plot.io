@@ -1,5 +1,5 @@
 {
-  "TICK" : 30,
+  "TICK" : 60,
   "DEFAULT_PLAYER_COLOR" : {
     "stroke" : [0, 0, 0, 180],
     "body" : [255,150,110]

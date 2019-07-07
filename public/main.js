@@ -4,9 +4,6 @@ document.addEventListener('contextmenu', event => event.preventDefault());
 
 window.addEventListener('beforeunload', event => {
 	return;
-	if (player) {
-		event.returnValue = "";
-	}
 });
 const CAMERA = { x: 0, y: 0 };
 
@@ -22,7 +19,7 @@ const STATUS = {
 
 const MODES = {
 	ffa : "FFA",
-	battleRoyale : "BATTLE_ROYALE"
+	battleRoyal : "BATTLE_ROYAL"
 }
 
 const game = {
@@ -377,6 +374,8 @@ const drawGame = () => {
 	
 	player.update(game.deltaTime);
 	player.updateStatus(game.deltaTime);
+	
+	// Follow player's position
 	CAMERA.x = player.position.x;
 	CAMERA.y = player.position.y;
 
@@ -427,18 +426,16 @@ const drawGame = () => {
 	drawInfo();
 }
 
-let lastLoop = performance.now();
 function draw() {
 	if (socket.connected && player) {
 		drawGame();
-		game.timer += game.mode === MODES.battleRoyale ?  -game.deltaTime : game.deltaTime;
+		game.timer += game.mode === MODES.battleRoyal ?  -game.deltaTime : game.deltaTime;
 	} else {
 		drawStatus();
 	}
 	let thisLoop = performance.now();
-	game.fps = 1000.0 / (thisLoop - lastLoop);
+	game.fps = frameRate();
 	game.deltaTime = 1.0 / game.fps;
-	lastLoop = thisLoop;
 }
 
 
@@ -452,7 +449,7 @@ function mousePressed(event) {
 	if (playerUI.focus) {
 		playerUI.mousePressed(event.button);
 	} else {
-		if (event.button == 0) {
+		if (event.button === 0) {
 			player.hold = true;
 			socket.emit("action+");
 		}
@@ -470,7 +467,7 @@ function mouseReleased(event) {
 			}
 		}
 	} else {
-		if (event.button == 0) {
+		if (event.button === 0) {
 			player.hold = false;
 			socket.emit("action-");
 		}

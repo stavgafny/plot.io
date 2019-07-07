@@ -15,7 +15,7 @@ class Item {
         this.amount = null;
     }
 
-    get type() { return this.constructor.name; }
+    get type() { return this.constructor.__proto__.name; }
 
     get value() { return this.amount; }
     
@@ -29,7 +29,7 @@ class Item {
     }
 
     get clone() {
-        return Object.assign( Object.create( Object.getPrototypeOf(this)), this);
+        return Object.assign( Object.create(Object.getPrototypeOf(this)), this);
     }
 
     createBlob(position) {
@@ -265,6 +265,11 @@ class Body {
 }
 
 
+class ItemBlob extends Body {
+    
+}
+
+
 class Ammo extends Item {
     constructor(name, maxAmount, amount) {
         super(name, false, maxAmount);
@@ -320,8 +325,10 @@ class Weapon extends Item {
         this.ready = true;
         this.currentPulse = 0;
     }
+    
+    get type() { return "Weapon"; }
 
-    get value() {return this.ammo; }
+    get value() { return this.ammo; }
 
     set value(ammo) { this.ammo = ammo; }
 
@@ -400,10 +407,9 @@ class Weapon extends Item {
             this.status = status;
             this.speed = speed;
             this.setColor(color);
-
+            this.inventory = inventory;
             this.inventory = exports.Player.DEFAULT_INVENTORY;
             this.inventory.storage = inventory;
-            
 
             this.axis = {
                 x: 0,

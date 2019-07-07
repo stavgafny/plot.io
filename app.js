@@ -34,17 +34,29 @@ function getRoomByName(name) {
 	return undefined;
 }
 
-function getRandomRoom() {
-	let r = Math.floor(Math.random() * rooms.length);
+function getRandomRoom(mode) {
+	// Tries first to get a random valid room based on given mode, if fails or no mode was given then picks any random valid room.
+	if (mode) {
+		const modeRooms = rooms.filter(room => room.mode === mode);
+		const r = Math.floor(Math.random() * modeRooms.length);
+		for (let i = r; i < modeRooms.length + r; i++) {
+			const room = modeRooms[i % modeRooms.length];
+			if (room.mode === mode && validRoom(room)) {
+				return room;
+			}
+		}
+	}
+	const r = Math.floor(Math.random() * rooms.length);
 	for (let i = r; i < rooms.length + r; i++) {
-		if (validRoom(rooms[i % rooms.length])) {
-			return rooms[i % rooms.length];
+		const room = rooms[i % rooms.length];
+		if (validRoom(room)) {
+			return room;
 		}
 	}
 }
 
 const handleConnection = socket => {
-	
+
 	// client full url
 	const get = socket.handshake.headers.referer;
 
@@ -61,7 +73,9 @@ const handleConnection = socket => {
 
 	// Checks if requested room is valid(exist, has a free spot, currently running) if its not then it will pick a random room(if can).
 	if (!validRoom(room)) {
-		room = getRandomRoom();
+		// Gets a random valid room that matches requested room mode (if has one, else, picks any random valid room).
+		const mode = (requestedRoom ?? "").split(":")[0];
+		room = getRandomRoom(mode);
 	}
 
 	// If there are no servers available.
@@ -75,42 +89,41 @@ const handleConnection = socket => {
 
 io.sockets.on("connection", handleConnection);
 
+
 rooms.push(
 	new gameEngine.Room("1", "FFA", {
-		config : {
-			showHealth : false,
-			startInventory : [
-				new assets.Wood(3),
-				new assets.Wood(10),
-				new assets.Wood(3),
+		config: {
+			showHealth: false,
+			startInventory: [
+				new assets.M4(),
+				new assets.M9(15),
+				new assets.Wood(4),
+				new assets.Stone(2),
+				new assets.A556(50),
 			]
 		},
-		settings : {
-			checkPhysicsCutOff : 5
+		settings: {
+			physicsDelayThreshold: 5
 		}
 	})
 );
 
-rooms[0].run();
-/*
-
 rooms.push(
-	new gameEngine.BATTLE_ROYALE("1", {
-
-		status : {
-			health : 100
+	new gameEngine.BATTLE_ROYAL("1", {
+		config: {
+			maxPlayers: 3,
+			showHealth: true,
+			status: { health: 100 },
+			startInventory: [
+				new assets.AK47(0),
+				new assets.A762(100),
+			]
 		},
-
-		startInventory : [
-			new assets.AK47(0),
-			new assets.M9(0),
-			new assets.A762(18),
-			new assets.A9MM(32)
-		]
+		settings: {
+			physicsDelayThreshold: 5
+		}
 	})
 );
 
-rooms[0].run();
-rooms[1].run();
-
-*/
+for (const room of rooms)
+	room.run();

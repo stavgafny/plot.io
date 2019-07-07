@@ -455,7 +455,7 @@ function drawStatus() {
 	textAlign(CENTER, CENTER);
 	if (typeof game.status === "string") {
 		let textValue = game.status;
-		if (game.mode === MODES.battleRoyale) {
+		if (game.mode === MODES.battleRoyal) {
 
 			if (game.status === STATUS.queue) {
 				textValue += `\nQueue: ${game.currentPlayers}/${game.maxPlayers}`;

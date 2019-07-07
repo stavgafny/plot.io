@@ -83,6 +83,42 @@ function preload() {
 		return 'rgba(' + color + ')';
 	}
 
+	graphics.ammunitionColors = {
+		undefined : [0, 0, 0],
+		"5.56" : [40, 255, 150],
+		"7.62" : [0, 255, 255],
+		"9mm" : [255, 255, 150]
+	};
+
+	graphics.ItemBlob = class extends Body {
+
+		static get PROPERTIES() {
+			return {
+				color : [80, 80, 80, 160]
+			};
+		}
+
+		constructor(item, position) {
+			super(position, item.createBlob().radius);
+			this.name = item.name;
+			this.color = graphics.ItemBlob.PROPERTIES.color
+		}
+		
+		draw () {
+			let e = fixedCamera(this.position);
+			push();
+			translate(e.x, e.y);
+			fill(this.color);
+			stroke(0);
+			strokeWeight(2);
+			ellipse(0, 0, this.radius * 2);
+			imageMode(CENTER);
+			const icon = ICONS[this.name] ? ICONS[this.name] : ICONS['none'];
+			image(icon, 0, 0, this.radius * 1.5, this.radius * 1.5);
+			pop();
+		}
+	};
+
 	// ~All game grahpical object~
 	
 	graphics.Player = class extends assets.Player {
@@ -334,52 +370,11 @@ function preload() {
 
 
 		update(deltaTime) {
-			console.log(this.maxRay);
 			super.update(deltaTime);
 			if (this.ray < this.maxRay) {
 				this.ray = Math.min(this.ray + (1 * deltaTime), this.maxRay);
 			}
 		}
-	};
-
-
-	graphics.ItemBlob = class extends Body {
-
-		static get PROPERTIES() {
-			return {
-				color : [80, 80, 80, 160]
-			};
-		}
-
-		constructor(item, position) {
-			super(position, item.createBlob().radius);
-			this.name = item.name;
-			this.color = graphics.ItemBlob.PROPERTIES.color
-		}
-		
-		draw () {
-			let e = fixedCamera(this.position);
-			push();
-			translate(e.x, e.y);
-			fill(this.color);
-			stroke(0);
-			strokeWeight(2);
-			ellipse(0, 0, this.radius * 2);
-			imageMode(CENTER);
-			const icon = ICONS[this.name] ? ICONS[this.name] : ICONS['none'];
-			image(icon, 0, 0, this.radius * 1.5, this.radius * 1.5);
-			pop();
-		}
-	};
-
-
-	// ~All game ammo~
-	
-	graphics.ammunitionColors = {
-		undefined : [0, 0, 0],
-		"5.56" : [40, 255, 150],
-		"7.62" : [0, 255, 255],
-		"9mm" : [255, 255, 150]
 	};
 
 	// ~All game weapons~

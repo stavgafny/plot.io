@@ -1,7 +1,7 @@
 {
   "name": "plot",
   "version": "1.0.0",
-  "description": "2d shooting game",
+  "description": "2d open world online survival game",
   "main": "app.js",
   "scripts": {
     "start": "node app"
